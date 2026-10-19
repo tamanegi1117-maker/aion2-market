@@ -28,7 +28,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40   # a full refresh of every server can take 15-20 minutes on GitHub
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -46,8 +46,7 @@ jobs:
         id: fetch
         shell: pwsh
         run: |
-          # A code push refreshes every server, since the data shape may have changed.
-          if ('${{ inputs.full }}' -eq 'true' -or '${{ github.event_name }}' -eq 'push') { ./fetch_market.ps1 -Full } else { ./fetch_market.ps1 }
+          if ('${{ inputs.full }}' -eq 'true') { ./fetch_market.ps1 -Full } else { ./fetch_market.ps1 }
 
       - name: Upload site
         if: steps.fetch.outputs.changed == 'true' || github.event_name != 'schedule'
