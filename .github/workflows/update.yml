@@ -1,30 +1,60 @@
 name: update-prices
 
+# Hourly, a few minutes after Aion2Market takes its hourly snapshot (around :09 UTC).
+# The script asks for the home server only and exits without changes when there is no new
+# snapshot; the other servers are refreshed every 6 hours. Data is deployed straight to
+# GitHub Pages (not committed), so the repository does not grow.
 on:
   schedule:
-    - cron: '17 */6 * * *'   # every 6 hours (UTC)
+    - cron: '14 * * * *'
   workflow_dispatch:
+    inputs:
+      full:
+        description: 'Refresh every server now'
+        type: boolean
+        default: false
+  push:
+    branches: [main]
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 concurrency:
-  group: update-prices
+  group: pages
   cancel-in-progress: false
 
 jobs:
   update:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch prices
-        shell: pwsh
-        run: ./fetch_market.ps1
-      - name: Commit data
+
+      - name: Get the data now on the site
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/items.json data/crafts.json
-          git diff --cached --quiet || git commit -m "Update market data"
-          git push
+          mkdir -p data
+          base="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data"
+          curl -fsS "$base/items.json" -o data/items.json || rm -f data/items.json
+          curl -fsS "$base/crafts.json" -o data/crafts.json || rm -f data/crafts.json
+
+      - name: Fetch prices
+        id: fetch
+        shell: pwsh
+        run: |
+          if ('${{ inputs.full }}' -eq 'true') { ./fetch_market.ps1 -Full } else { ./fetch_market.ps1 }
+
+      - name: Upload site
+        if: steps.fetch.outputs.changed == 'true' || github.event_name != 'schedule'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy site
+        id: deploy
+        if: steps.fetch.outputs.changed == 'true' || github.event_name != 'schedule'
+        uses: actions/deploy-pages@v4

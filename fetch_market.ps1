@@ -1,8 +1,13 @@
 ﻿# Fetch AION2 exchange prices (aion2.exchange) for crafted weapons, crafted accessories and
 # crafting materials on every Elyos server, compare the home server against the other Asia
 # servers, the Asia early-access servers and the global (NA/EU/LA) servers, and write
-# output/items.json and output/crafts.json for the dashboard. Prints a short summary only.
-param([int]$HomeServer = 11506)
+# data/items.json and data/crafts.json for the site. Prints a short summary only.
+#
+# Runs hourly. The other servers are fetched only every 6 hours (or with -Full); between
+# those runs their medians are carried over from the previous data/items.json, so an hourly
+# run asks the exchange for the home server only. If the exchange has no new snapshot since
+# the previous data, nothing is written.
+param([int]$HomeServer = 11506, [switch]$Full)
 
 $ErrorActionPreference = 'Stop'
 $base = 'https://aion2.exchange/api'
@@ -15,6 +20,17 @@ function Get-Api([string]$path) {
         try { return Invoke-RestMethod "$base/$path" -TimeoutSec 60 }
         catch { if ($i -eq 4) { throw "API failed ($path): $($_.Exception.Message)" }; Start-Sleep -Seconds (5 * $i) }
     }
+}
+
+function Set-Output([string]$name, [string]$value) {
+    if ($env:GITHUB_OUTPUT) { Add-Content -Path $env:GITHUB_OUTPUT -Value "$name=$value" }
+}
+
+# Dates come back as strings (PowerShell 5) or DateTime (PowerShell 7).
+function ConvertTo-Utc($v) {
+    if ($null -eq $v -or $v -eq '') { return $null }
+    if ($v -is [datetime]) { return $v.ToUniversalTime() }
+    return [datetimeoffset]::Parse([string]$v).UtcDateTime
 }
 
 function Get-Median($values) {
@@ -104,6 +120,26 @@ function Get-Group($s) {
 $groupCount = @{ asia = 0; early = 0; global = 0 }
 foreach ($s in $servers) { $g = Get-Group $s; if ($g -ne 'home') { $groupCount[$g]++ } }
 
+# --- Previous data: decide full or home-only, and skip when nothing is new ----------------
+$prevData = $null
+$prevFile = Join-Path $outDir 'items.json'
+if (Test-Path $prevFile) { try { $prevData = Get-Content -Raw -Encoding UTF8 $prevFile | ConvertFrom-Json } catch { $prevData = $null } }
+$othersAt = if ($prevData -and $prevData.meta) { ConvertTo-Utc $prevData.meta.others_at } else { $null }
+$now = (Get-Date).ToUniversalTime()
+$doFull = $Full -or -not $othersAt -or ($now - $othersAt).TotalMinutes -ge 350
+
+if (-not $doFull) {
+    $probe = Get-Api "items?section=materials&server=$HomeServer&offset=0&limit=1"
+    $latest = ConvertTo-Utc $probe.items[0].captured_at
+    $prevAt = ConvertTo-Utc $prevData.meta.captured_at
+    if ($latest -and $prevAt -and $latest -le $prevAt) {
+        "no new snapshot (latest $($latest.ToString('o'))); nothing written"
+        Set-Output 'changed' 'false'
+        return
+    }
+}
+$fetchServers = if ($doFull) { $servers } else { @($servers | Where-Object { $_.server_id -eq $HomeServer }) }
+
 $sections = 'weapons', 'accessories', 'materials'
 function Test-Wanted([string]$sec, $it) {
     switch ($sec) {
@@ -117,7 +153,7 @@ function Test-Wanted([string]$sec, $it) {
 $obs = @{}
 $skipped = @()
 $capturedAt = $null
-foreach ($s in $servers) {
+foreach ($s in $fetchServers) {
     $g = Get-Group $s
     foreach ($sec in $sections) {
         # Another server failing only drops it from the comparison; the home server must load.
@@ -141,6 +177,26 @@ foreach ($s in $servers) {
             }
         }
     }
+}
+
+# Home-only run: carry the other servers' medians over from the previous data.
+if (-not $doFull) {
+    $secCode = @{ '製作武器' = 'weapons'; '製作装飾品' = 'accessories'; '素材' = 'materials' }
+    foreach ($pr in $prevData.rows) {
+        $k = [string]$pr.key
+        if (-not $obs.ContainsKey($k)) {
+            $obs[$k] = @{ sec = $secCode[$pr.section]; en = $pr.name_en; home = $null
+                          asia = @(); early = @(); global = @(); chEarly = @(); chAsia = @(); chGlobal = @() }
+        }
+        $o = $obs[$k]
+        if ($null -ne $pr.asia_med) { $o.asia = @([double]$pr.asia_med) }
+        if ($null -ne $pr.early_med) { $o.early = @([double]$pr.early_med) }
+        if ($null -ne $pr.global_med) { $o.global = @([double]$pr.global_med) }
+        if ($null -ne $pr.early_ch7) { $o.chEarly = @([double]$pr.early_ch7) }
+        if ($null -ne $pr.global_ch7) { $o.chGlobal = @([double]$pr.global_ch7) }
+        $o.n = @{ asia = [int]$pr.asia_n; early = [int]$pr.early_n; global = [int]$pr.global_n }
+    }
+    $groupCount = @{ asia = [int]$prevData.meta.asia_servers; early = [int]$prevData.meta.early_servers; global = [int]$prevData.meta.global_servers }
 }
 
 # 24h change on the home server
@@ -212,7 +268,9 @@ $rows = foreach ($k in $obs.Keys) {
         ch24 = $(if ($null -ne $ch24[$k]) { [math]::Round($ch24[$k], 1) } else { $null }); ch7 = $ch7
         wk_med = Round-Price $wkMed; wk_low = Round-Price $wkLow
         asia_med = Round-Price $asiaMed; early_med = Round-Price $earlyMed; global_med = Round-Price $globalMed
-        asia_n = $o.asia.Count; early_n = $o.early.Count; global_n = $o.global.Count
+        asia_n = $(if ($o.n) { $o.n.asia } else { $o.asia.Count })
+        early_n = $(if ($o.n) { $o.n.early } else { $o.early.Count })
+        global_n = $(if ($o.n) { $o.n.global } else { $o.global.Count })
         early_ch7 = $(if ($null -ne $earlyCh) { [math]::Round($earlyCh, 1) } else { $null })
         global_ch7 = $(if ($o.chGlobal.Count) { [math]::Round((Get-Median $o.chGlobal), 1) } else { $null })
         vs_wk = $vsWk; vs_asia = $vsAsia; vs_early = $vsEarly; vs_global = $vsGlobal
@@ -288,12 +346,17 @@ $crafts = @($crafts | Sort-Object { $_.section }, { -[double]$(if ($null -ne $_.
 
 # --- Write -------------------------------------------------------------------------------
 $utf8 = New-Object System.Text.UTF8Encoding($false)
-$meta = [ordered]@{ captured_at = $capturedAt; home = $HomeServer; asia_servers = $groupCount.asia; early_servers = $groupCount.early; global_servers = $groupCount.global }
+$meta = [ordered]@{
+    captured_at = $capturedAt; home = $HomeServer
+    others_at = $(if ($doFull) { $now.ToString('o') } else { (ConvertTo-Utc $prevData.meta.others_at).ToString('o') })
+    asia_servers = $groupCount.asia; early_servers = $groupCount.early; global_servers = $groupCount.global
+}
 [IO.File]::WriteAllText((Join-Path $outDir 'items.json'), (@{ meta = $meta; rows = $rows } | ConvertTo-Json -Depth 5 -Compress), $utf8)
 [IO.File]::WriteAllText((Join-Path $outDir 'crafts.json'), (@{ rows = $crafts } | ConvertTo-Json -Depth 10 -Compress), $utf8)
 
 # --- Short summary (keep it small: this is what Claude reads) -----------------------------
-"skipped: $($skipped.Count) $($skipped -join ',')"
+Set-Output 'changed' 'true'
+"mode: $(if ($doFull) { 'full' } else { 'home only' })  skipped: $($skipped.Count) $($skipped -join ',')"
 "captured_at: $capturedAt  servers: asia=$($groupCount.asia) early=$($groupCount.early) global=$($groupCount.global)  rows=$($rows.Count) crafts=$($crafts.Count)"
 foreach ($sec in '製作武器', '製作装飾品', '素材') {
     $s = @($rows | Where-Object { $_.section -eq $sec })
