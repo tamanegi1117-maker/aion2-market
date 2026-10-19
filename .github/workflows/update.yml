@@ -1,12 +1,13 @@
 name: update-prices
 
-# Hourly, a few minutes after Aion2Market takes its hourly snapshot (around :09 UTC).
+# Every 15 minutes, starting a few minutes after Aion2Market's hourly snapshot (around :09 UTC).
+# GitHub delays or drops scheduled runs under load, so the extra runs are retries; they exit in\n# under a minute when the snapshot is already on the site.
 # The script asks for the home server only and exits without changes when there is no new
 # snapshot; the other servers are refreshed every 6 hours. Data is deployed straight to
 # GitHub Pages (not committed), so the repository does not grow.
 on:
   schedule:
-    - cron: '14 * * * *'
+    - cron: '14,29,44,59 * * * *'
   workflow_dispatch:
     inputs:
       full:
