@@ -55,6 +55,8 @@ section > header p { margin: 0; color: var(--muted); font-size: .85rem; }
 .pick .pr { font-weight: 600; text-align: right; }
 .pick .sub { font-size: .8rem; color: var(--muted); }
 .pick .badge { text-align: right; font-size: .8rem; font-weight: 600; white-space: nowrap; }
+.pick .mv { grid-column: 1 / -1; font-size: .76rem; color: var(--muted); font-family: var(--num); }
+.pick .mv b { font-weight: 600; }
 .none { color: var(--muted); font-size: .85rem; margin: 6px 0 10px; }
 
 /* Craft or buy */
@@ -112,6 +114,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .fc-now .col h3 { font-size: 1rem; }
 .fc-now .col.up h3 { color: var(--up); } .fc-now .col.dn h3 { color: var(--buy); }
 .fc-sub { margin: 0 0 8px; font-size: .92rem; font-weight: 600; }
+.fc-stone { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); margin-bottom: 16px; }
+.fc-stone article { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; display: grid; gap: 4px; font-size: .86rem; }
+.fc-stone .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.fc-stone .top .num { font-weight: 600; font-size: 1rem; }
+.fc-stone p { margin: 0; }
 .item svg { display: block; margin: 0 auto; }
 .detail { padding: 4px 14px 14px; display: grid; gap: 10px; }
 .grid { display: grid; gap: 6px 18px; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); font-size: .84rem; margin: 0; }
@@ -191,6 +198,8 @@ footer a, .notes a { color: var(--accent); }
       <div class="col up"><h3>上がりそう</h3><p>先行サーバーが上がっている・他サーバーより安い</p><div id="fc-up"></div></div>
       <div class="col dn"><h3>下がりそう</h3><p>先行サーバーが下がっている・他サーバーより高い</p><div id="fc-down"></div></div>
     </div>
+    <p class="fc-sub">精錬石の予想</p>
+    <div class="fc-stone" id="fc-stone"></div>
     <p class="fc-sub">1か月の予想(韓国版で同じ時期に起きたこと)</p>
     <p class="note" style="margin:-4px 0 10px">韓国版はグローバル版より約11か月先を進んでいます。キナの価値がちがうので、値段の数字ではなく「いつ頃、上がったか下がったか」を参考にしてください。</p>
     <div class="fc" id="forecast"></div>
@@ -208,7 +217,7 @@ footer a, .notes a { color: var(--accent); }
 
     <div id="pane-list">
       <div class="tools">
-        <label><input type="checkbox" id="f-mine" checked> 自分が作る物だけ</label>
+        <label><input type="checkbox" id="f-mine" checked> 製作素材関係だけ</label>
         <label><input type="checkbox" id="f-big" checked> <span id="f-big-label">10万ギーナ未満を隠す</span></label>
         <select id="f-sort" aria-label="並べ方">
           <option value="verdict">判断の順</option>
@@ -303,12 +312,19 @@ footer a, .notes a { color: var(--accent); }
     return [text, v < 0 ? 'lo' : 'hi'];
   }
 
+  // "3日: 自鯖 -18% / 他鯖 -2%" line used on every pick.
+  function moves(r) {
+    const m = el('span', 'mv'); m.append(document.createTextNode('3日: 自鯖 '));
+    m.append(el('b', tone(r.ch3), pct(r.ch3)), document.createTextNode(' / 他鯖 '), el('b', tone(r.asia_ch3), pct(r.asia_ch3)));
+    return m;
+  }
+
   function pickList(box, rows, mode, emptyText) {
     box.replaceChildren();
     if (!rows.length) { box.append(el('p', 'none', emptyText)); return; }
     for (const r of rows) {
       const d = el('div', 'pick'), [text, cls] = badge(r, mode);
-      d.append(name(r), el('span', 'num pr', gina(r.price)), el('span', 'sub', KIND[r.section] + (mode === 'watch' ? ' ・ ' + r.verdict : '')), el('span', 'badge ' + cls, text));
+      d.append(name(r), el('span', 'num pr', gina(r.price)), el('span', 'sub', KIND[r.section] + (mode === 'watch' ? ' ・ ' + r.verdict : '')), el('span', 'badge ' + cls, text), moves(r));
       box.append(d);
     }
   }
@@ -374,7 +390,7 @@ footer a, .notes a { color: var(--accent); }
       if (!rows.length) { box.append(el('p', 'none', empty)); return; }
       for (const r of rows) {
         const d = el('div', 'pick');
-        d.append(name(r), el('span', 'num pr', gina(r.price)), el('span', 'sub', KIND[r.section]), el('span', 'badge ' + (r.fc_short === '上がる' ? 'hi' : 'lo'), r.fc_short_why.split(' / ')[0] || ''));
+        d.append(name(r), el('span', 'num pr', gina(r.price)), el('span', 'sub', KIND[r.section]), el('span', 'badge ' + (r.fc_short === '上がる' ? 'hi' : 'lo'), r.fc_short_why.split(' / ')[0] || ''), moves(r));
         box.append(d);
       }
     };
@@ -382,11 +398,27 @@ footer a, .notes a { color: var(--accent); }
     list($('#fc-down'), mine.filter((r) => r.fc_short === '下がる').sort((a, b) => a.fc_score - b.fc_score).slice(0, 7), '目立って下がりそうな物はありません');
   }
 
+  // Rare (Expert's) and legendary (Artisan's) refining stones, shown whatever their outlook.
+  const STONES = ["Expert's Refining Stone", "Artisan's Refining Stone"];
+  function drawStones(items) {
+    const box = $('#fc-stone'); box.replaceChildren();
+    for (const en of STONES) {
+      const r = items.find((x) => x.name_en === en); if (!r) continue;
+      const a = el('article'), top = el('div', 'top');
+      top.append(name(r, 'b'), el('span', 'num', gina(r.price)));
+      const f = forecastFor(r);
+      a.append(top, moves(r),
+        el('p', '', `数日: ${ARROW[r.fc_short] || '-'} ${r.fc_short || 'データ不足'}` + (r.fc_short_why ? `(${r.fc_short_why})` : '')),
+        el('p', 'muted', `1か月: ${ARROW[r.fc_mid] || '-'} ${r.fc_mid || '-'}` + (f ? `(韓国では${f.when}に: ${f.korea})` : '(キナの価値が下がっていく流れ)')));
+      box.append(a);
+    }
+  }
+
   function drawForecast() {
     const box = $('#forecast'); box.replaceChildren();
     for (const f of FORECAST) {
       const a = el('article'), top = el('div', 'top');
-      top.append(el('h3', '', f.item), el('span', 'conf', '確からしさ: ' + f.confidence));
+      top.append(el('h3', '', f.item), el('span', 'conf', '正確度: ' + f.confidence));
       const was = el('p', 'kr-was'); was.append(el('b', '', `韓国(${f.when}): `), document.createTextNode(f.korea));
       a.append(top, was, el('p', 'next', '→ 予想: ' + f.forecast), el('small', '', '出典: ' + f.source));
       box.append(a);
@@ -470,7 +502,7 @@ footer a, .notes a { color: var(--accent); }
     ITEMS = it.rows;
     $('#time').textContent = timeText((it.meta && it.meta.captured_at) || (ITEMS[0] && ITEMS[0].captured_at));
     FORECAST = kr.forecast || [];
-    drawBoard(ITEMS); drawCrafts(cr.rows); drawShortForecast(ITEMS); drawForecast(); drawKorea(kr.rows);
+    drawBoard(ITEMS); drawCrafts(cr.rows); drawShortForecast(ITEMS); drawStones(ITEMS); drawForecast(); drawKorea(kr.rows);
     let saved = null; try { saved = localStorage.getItem('tab'); } catch (e) {}
     show(saved && document.querySelector(`.tab[data-tab="${saved}"]`) ? saved : '製作武器');
   }).catch((e) => { $('#time').textContent = 'データを読み込めませんでした(' + e.message + ')。少し待って再読み込みしてください'; });
