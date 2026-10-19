@@ -48,6 +48,28 @@ function Get-Pct($now, $ref) {
 
 function Round-Price($v) { if ($null -eq $v) { return $null }; return [long][math]::Round($v) }
 
+# 7-day price history (4h buckets) as {t, p} points, per item key.
+function Get-Sparks([int]$server, [string[]]$keys) {
+    $res = @{}
+    for ($i = 0; $i -lt $keys.Count; $i += 40) {
+        $batch = $keys[$i..([math]::Min($i + 39, $keys.Count - 1))]
+        $r = Get-Api "sparklines?server=$server&keys=$($batch -join ',')&window=7d"
+        foreach ($sl in $r.sparklines) {
+            $res[[string]$sl.item_key] = @($sl.points | Where-Object { $_.price } | ForEach-Object { [pscustomobject]@{ t = ConvertTo-Utc $_.ts; p = [double]$_.price } })
+        }
+    }
+    return $res
+}
+
+# Price about $hours ago from a history (nearest point within 8 hours), else $null.
+function Get-PriceAgo($pts, [int]$hours) {
+    if (-not $pts) { return $null }
+    $target = (Get-Date).ToUniversalTime().AddHours(-$hours)
+    $best = $pts | Sort-Object { [math]::Abs(($_.t - $target).TotalHours) } | Select-Object -First 1
+    if ([math]::Abs(($best.t - $target).TotalHours) -gt 8) { return $null }
+    return $best.p
+}
+
 # --- Japanese names for crafted equipment ------------------------------------------------
 $tiers = @(
     @{ en = "Splendent True Dragon Lord "; ja = '光る真龍王の'; rank = 8 },
@@ -166,12 +188,14 @@ foreach ($s in $fetchServers) {
             $k = [string]$it.item_key
             if (-not $obs.ContainsKey($k)) {
                 $obs[$k] = @{ sec = $sec; en = $it.name; home = $null
-                              asia = @(); early = @(); global = @(); chEarly = @(); chAsia = @(); chGlobal = @() }
+                              asia = @(); early = @(); global = @(); chEarly = @(); chAsia = @(); chGlobal = @()
+                              c3Asia = @(); c3Early = @(); byServer = @{} }
             }
             $o = $obs[$k]
             if ($g -eq 'home') { $o.home = $it; if (-not $capturedAt) { $capturedAt = $it.captured_at }; continue }
             if ($it.listed -and $it.price) {
                 $o[$g] += [double]$it.price
+                if ($g -in 'asia', 'early') { $o.byServer[[int]$s.server_id] = [double]$it.price }
                 if ($null -ne $it.change_pct) {
                     $chKey = @{ asia = 'chAsia'; early = 'chEarly'; global = 'chGlobal' }[$g]
                     $o[$chKey] += [double]$it.change_pct
@@ -197,9 +221,25 @@ if (-not $doFull) {
         if ($null -ne $pr.global_med) { $o.global = @([double]$pr.global_med) }
         if ($null -ne $pr.early_ch7) { $o.chEarly = @([double]$pr.early_ch7) }
         if ($null -ne $pr.global_ch7) { $o.chGlobal = @([double]$pr.global_ch7) }
+        if ($null -ne $pr.asia_ch3) { $o.c3Asia = @([double]$pr.asia_ch3) }
+        if ($null -ne $pr.early_ch3) { $o.c3Early = @([double]$pr.early_ch3) }
         $o.n = @{ asia = [int]$pr.asia_n; early = [int]$pr.early_n; global = [int]$pr.global_n }
     }
     $groupCount = @{ asia = [int]$prevData.meta.asia_servers; early = [int]$prevData.meta.early_servers; global = [int]$prevData.meta.global_servers }
+}
+
+# Full run: 3-day change on each other Asia server (early-access ones included).
+if ($doFull) {
+    foreach ($s in @($servers | Where-Object { (Get-Group $_) -in 'asia', 'early' })) {
+        $sid = [int]$s.server_id; $g = Get-Group $s
+        $keys = @($obs.Keys | Where-Object { $obs[$_].byServer.ContainsKey($sid) })
+        if (-not $keys) { continue }
+        try { $sp = Get-Sparks $sid $keys } catch { $skipped += "$sid/sparklines"; continue }
+        foreach ($k in $keys) {
+            $c3 = Get-Pct $obs[$k].byServer[$sid] (Get-PriceAgo $sp[$k] 72)
+            if ($null -ne $c3) { if ($g -eq 'asia') { $obs[$k].c3Asia += $c3 } else { $obs[$k].c3Early += $c3 } }
+        }
+    }
 }
 
 # 24h change on the home server
@@ -210,13 +250,9 @@ foreach ($sec in $sections) {
 }
 
 # 7-day history on the home server (4h buckets)
-$spark = @{}
 $homeKeys = @($obs.Keys | Where-Object { $obs[$_].home -and $obs[$_].home.listed })
-for ($i = 0; $i -lt $homeKeys.Count; $i += 40) {
-    $batch = $homeKeys[$i..([math]::Min($i + 39, $homeKeys.Count - 1))]
-    $r = Get-Api "sparklines?server=$HomeServer&keys=$($batch -join ',')&window=7d"
-    foreach ($sl in $r.sparklines) { $spark[[string]$sl.item_key] = @($sl.points | Where-Object { $_.price } | ForEach-Object { [double]$_.price }) }
-}
+$spark = Get-Sparks $HomeServer $homeKeys
+$since3d = (Get-Date).ToUniversalTime().AddHours(-72)
 
 # --- Build rows --------------------------------------------------------------------------
 $rows = foreach ($k in $obs.Keys) {
@@ -231,24 +267,30 @@ $rows = foreach ($k in $obs.Keys) {
         $n = Convert-EquipName $o.en; $ja = $n.ja; $kind = $n.part; $rank = $n.rank
     }
 
-    $hist = $spark[$k]
+    $pts = $spark[$k]
+    $hist = @($pts | ForEach-Object { $_.p })
     $wkMed = Get-Median $hist
     $wkLow = if ($hist) { ($hist | Measure-Object -Minimum).Minimum } else { $null }
     $asiaMed = Get-Median $o.asia; $earlyMed = Get-Median $o.early; $globalMed = Get-Median $o.global
     $earlyCh = Get-Median $o.chEarly
+    $ch3 = Get-Pct $price (Get-PriceAgo $pts 72)
+    $asiaCh3 = Get-Median $o.c3Asia; $earlyCh3 = Get-Median $o.c3Early
     $ch7 = if ($h -and $null -ne $h.change_pct) { [math]::Round($h.change_pct, 1) } else { $null }
     $listings = if ($h) { [int]$h.listings } else { 0 }
 
     $vsWk = Get-Pct $price $wkMed; $vsAsia = Get-Pct $price $asiaMed
     $vsEarly = Get-Pct $price $earlyMed; $vsGlobal = Get-Pct $price $globalMed
 
-    # Cheap/dear needs one signal and no opposite signal from the other comparison.
-    $wkLowSig = $null -ne $vsWk -and $vsWk -le -15; $wkHighSig = $null -ne $vsWk -and $vsWk -ge 20
+    # A 3-day move counts only when it is at least 10 points beyond the other Asia servers'
+    # move (a market-wide move is not a bargain). Cheap/dear also needs no opposite signal.
+    $rel = if ($null -ne $ch3 -and $null -ne $asiaCh3) { $ch3 - $asiaCh3 } else { $ch3 }
+    $dropSig = $null -ne $ch3 -and $ch3 -le -15 -and $rel -le -10
+    $jumpSig = $null -ne $ch3 -and $ch3 -ge 20 -and $rel -ge 10
     $asLowSig = $null -ne $vsAsia -and $vsAsia -le -20; $asHighSig = $null -ne $vsAsia -and $vsAsia -ge 25
-    $cheap = ($wkLowSig -or $asLowSig) -and -not ($wkHighSig -or $asHighSig)
-    $dear  = ($wkHighSig -or $asHighSig) -and -not ($wkLowSig -or $asLowSig)
-    $rise  = ($null -ne $earlyCh -and $earlyCh -ge 10 -and ($null -eq $ch7 -or $ch7 -lt $earlyCh - 10))
-    $fall  = ($null -ne $earlyCh -and $earlyCh -le -10 -and ($null -eq $ch7 -or $ch7 -gt $earlyCh + 10))
+    $cheap = ($dropSig -or $asLowSig) -and -not ($jumpSig -or $asHighSig)
+    $dear  = ($jumpSig -or $asHighSig) -and -not ($dropSig -or $asLowSig)
+    $rise  = ($null -ne $earlyCh3 -and $earlyCh3 -ge 10 -and ($null -eq $ch3 -or $ch3 -lt $earlyCh3 - 10))
+    $fall  = ($null -ne $earlyCh3 -and $earlyCh3 -le -10 -and ($null -eq $ch3 -or $ch3 -gt $earlyCh3 + 10))
 
     $verdict = if (-not $price) { '出品なし' }
                elseif ($cheap -and -not $fall) { '買い時' }
@@ -258,9 +300,10 @@ $rows = foreach ($k in $obs.Keys) {
                else { '様子見' }
 
     $why = @()
-    if ($null -ne $vsWk -and [math]::Abs($vsWk) -ge 15) { $why += ('1週間の中央値より{0}%{1}' -f [math]::Abs($vsWk), $(if ($vsWk -lt 0) { '安い' } else { '高い' })) }
-    if ($null -ne $vsAsia -and [math]::Abs($vsAsia) -ge 20) { $why += ('アジアの他鯖より{0}%{1}' -f [math]::Abs($vsAsia), $(if ($vsAsia -lt 0) { '安い' } else { '高い' })) }
-    if ($rise -or $fall) { $why += ('アーリー鯖で1週間{0}{1}%' -f $(if ($earlyCh -gt 0) { '+' } else { '' }), [math]::Round($earlyCh, 1)) }
+    $sign = { param($v) $(if ($v -gt 0) { '+' } else { '' }) + [math]::Round($v) + '%' }
+    if ($dropSig -or $jumpSig) { $why += ('3日で{0}(他サーバーは{1})' -f (& $sign $ch3), $(if ($null -ne $asiaCh3) { & $sign $asiaCh3 } else { '不明' })) }
+    if ($null -ne $vsAsia -and [math]::Abs($vsAsia) -ge 20) { $why += ('他サーバーより{0}%{1}' -f [math]::Round([math]::Abs($vsAsia)), $(if ($vsAsia -lt 0) { '安い' } else { '高い' })) }
+    if ($rise -or $fall) { $why += ('先行サーバーで3日{0}' -f (& $sign $earlyCh3)) }
     if ($price -and $listings -lt 3) { $why += '出品が少なく参考程度' }
 
     [pscustomobject][ordered]@{
@@ -269,6 +312,9 @@ $rows = foreach ($k in $obs.Keys) {
         kind = $kind; tier = $rank; rarity = Get-Rarity $o.en $rank; mine = $(if (Test-Mine $o.sec $o.en) { '○' } else { '' })
         price = Round-Price $price; listings = $listings
         ch24 = $(if ($null -ne $ch24[$k]) { [math]::Round($ch24[$k], 1) } else { $null }); ch7 = $ch7
+        ch3 = $ch3
+        asia_ch3 = $(if ($null -ne $asiaCh3) { [math]::Round($asiaCh3, 1) } else { $null })
+        early_ch3 = $(if ($null -ne $earlyCh3) { [math]::Round($earlyCh3, 1) } else { $null })
         wk_med = Round-Price $wkMed; wk_low = Round-Price $wkLow
         asia_med = Round-Price $asiaMed; early_med = Round-Price $earlyMed; global_med = Round-Price $globalMed
         asia_n = $(if ($o.n) { $o.n.asia } else { $o.asia.Count })
@@ -278,7 +324,7 @@ $rows = foreach ($k in $obs.Keys) {
         global_ch7 = $(if ($o.chGlobal.Count) { [math]::Round((Get-Median $o.chGlobal), 1) } else { $null })
         vs_wk = $vsWk; vs_asia = $vsAsia; vs_early = $vsEarly; vs_global = $vsGlobal
         verdict = $verdict; reason = ($why -join ' / ')
-        spark = $(if ($hist) { ($hist | ForEach-Object { [long]$_ }) -join ',' } else { '' })
+        spark = $(if ($pts) { ($pts | Where-Object { $_.t -ge $since3d } | ForEach-Object { [long]$_.p }) -join ',' } else { '' })
         captured_at = $capturedAt
     }
 }

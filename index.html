@@ -96,9 +96,9 @@ section > header p { margin: 0; color: var(--muted); font-size: .85rem; }
 .tools input[type=search] { flex: 1 1 160px; min-width: 0; }
 button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .list { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-.head, .item > summary { display: grid; grid-template-columns: minmax(0, 2.3fr) 1fr 0.9fr 0.9fr 92px 92px; gap: 10px; align-items: center; padding: 10px 14px; }
+.head, .item > summary { display: grid; grid-template-columns: minmax(0, 2.2fr) 0.9fr 0.75fr 0.75fr 0.9fr 92px 92px; gap: 10px; align-items: center; padding: 10px 14px; }
 .head { color: var(--muted); font-size: .76rem; border-bottom: 1px solid var(--line); line-height: 1.3; }
-.head span:nth-child(n+2):nth-child(-n+4) { text-align: right; } .head span:nth-child(n+5) { text-align: center; }
+.head span:nth-child(n+2):nth-child(-n+5) { text-align: right; } .head span:nth-child(n+6) { text-align: center; }
 .item { border-bottom: 1px solid var(--line); }
 .item:last-child { border-bottom: 0; }
 .item > summary { list-style: none; cursor: pointer; }
@@ -115,14 +115,24 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .empty { padding: 20px; color: var(--muted); text-align: center; }
 @media (max-width: 640px) {
   .head { display: none; }
-  .item > summary { grid-template-columns: 1fr auto; grid-template-areas: "nm pc" "p sp" "wk va"; gap: 4px 10px; }
+  .item > summary { grid-template-columns: 1fr 1fr auto; grid-template-areas: "nm nm pc" "p p sp" "c3 o3 va"; gap: 4px 10px; }
   .item .nm { grid-area: nm; } .item .pc { grid-area: pc; } .item .sp { grid-area: sp; }
   .item .p { grid-area: p; text-align: left; font-size: 1.05rem; font-weight: 600; }
-  .item .wk { grid-area: wk; text-align: left; } .item .va { grid-area: va; }
-  .item .wk::before { content: "いつもより "; } .item .va::before { content: "他サーバーより "; }
-  .item .wk::before, .item .va::before { color: var(--muted); font-family: var(--font); font-size: .74rem; }
+  .item .c3 { grid-area: c3; text-align: left; } .item .o3 { grid-area: o3; text-align: left; } .item .va { grid-area: va; }
+  .item .c3::before { content: "自鯖3日 "; } .item .o3::before { content: "他鯖3日 "; } .item .va::before { content: "他鯖比 "; }
+  .item .c3::before, .item .o3::before, .item .va::before { color: var(--muted); font-family: var(--font); font-size: .74rem; }
   .bar { grid-template-columns: minmax(0, 8rem) 1fr auto; }
 }
+.fc { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); align-items: start; }
+.fc article { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; display: grid; gap: 6px; }
+.fc .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.fc h3 { margin: 0; font-size: .98rem; }
+.fc .conf { font-size: .74rem; color: var(--muted); white-space: nowrap; }
+.fc .kr-was { margin: 0; font-size: .84rem; color: var(--muted); }
+.fc .kr-was b { color: var(--fg); font-weight: 600; }
+.fc .next { margin: 0; font-size: .9rem; color: var(--accent); }
+.fc small { color: var(--muted); font-size: .72rem; }
+.detail .fcline { margin: 0; font-size: .84rem; border-left: 3px solid var(--accent); padding-left: 10px; }
 .kr { display: grid; gap: 10px; }
 .kr article { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; display: grid; gap: 4px; }
 .kr h3 { margin: 0; font-size: .95rem; } .kr p { margin: 0; font-size: .88rem; }
@@ -145,9 +155,9 @@ footer a, .notes a { color: var(--accent); }
   <details class="intro">
     <summary>はじめての方へ: このページの見方</summary>
     <ul>
-      <li><b>今買う</b> = いつもの値段や他のサーバーより安くなっている物。<b>今売る</b> = 高くなっている物</li>
+      <li><b>今買う</b> = ここ3日でアリエルだけ大きく下がった物や、他のサーバーより安い物。<b>今売る</b> = その逆に高くなった物</li>
       <li><b>様子を見る</b> = 先行サーバー(アリエルより数日早く始まった3つのサーバー)で値段が大きく動いた物。数日後にアリエルでも同じ動きが来やすい</li>
-      <li>「いつもの値段」は、この1週間のアリエル鯖の値段の真ん中(中央値)</li>
+      <li><b>自鯖3日</b> = アリエルの3日前からの値段の上下。<b>他鯖3日</b> = アジアの他の6サーバーの3日の上下(真ん中の値)。両方を比べると、アリエルだけの動きか、全サーバーの動きかが分かります</li>
       <li>名前の色はレアリティ。行を押すと、詳しい数字が開きます</li>
     </ul>
     <div class="legend"><b>レアリティ</b><span class="r-一般">一般</span><span class="r-希少">希少</span><span class="r-伝承">伝承</span><span class="r-唯一">唯一</span></div>
@@ -156,8 +166,8 @@ footer a, .notes a { color: var(--accent); }
   <section aria-labelledby="h-answer">
     <header><h2 id="h-answer">今日の結論</h2><p>長剣・ガーダー・指輪・首飾りと、その素材から選んでいます(出品が3件以上ある物だけ)</p></header>
     <div class="board">
-      <div class="col buy"><h3>今買う</h3><p>いつもより安い</p><div id="pick-buy"></div></div>
-      <div class="col sell"><h3>今売る</h3><p>いつもより高い</p><div id="pick-sell"></div></div>
+      <div class="col buy"><h3>今買う</h3><p>3日でアリエルだけ下がった・他サーバーより安い</p><div id="pick-buy"></div></div>
+      <div class="col sell"><h3>今売る</h3><p>3日でアリエルだけ上がった・他サーバーより高い</p><div id="pick-sell"></div></div>
       <div class="col watch"><h3>様子を見る</h3><p>先行サーバーで先に動いた</p><div id="pick-watch"></div></div>
     </div>
   </section>
@@ -166,6 +176,12 @@ footer a, .notes a { color: var(--accent); }
     <header><h2 id="h-craft">装備は作るか買うか</h2>
       <p>光る装備が出る確率は25%として、各段階を4回作って光る物を1つ作り、次の段階に進む計算です。製作の失敗と、外れた3個の売値は入れていません。</p></header>
     <div class="crafts" id="crafts"></div>
+  </section>
+
+  <section aria-labelledby="h-fc">
+    <header><h2 id="h-fc">今後の予想(韓国版で実際にあった動きから)</h2>
+      <p>韓国版はグローバル版より約11か月先を進んでいます。アジアの正式サーバーは今、開始から約2週間です。キナの価値がちがうので、値段の数字ではなく「いつ頃、上がったか下がったか」を参考にしてください。</p></header>
+    <div class="fc" id="forecast"></div>
   </section>
 
   <section aria-labelledby="h-list">
@@ -184,14 +200,14 @@ footer a, .notes a { color: var(--accent); }
         <label><input type="checkbox" id="f-big" checked> <span id="f-big-label">10万ギーナ未満を隠す</span></label>
         <select id="f-sort" aria-label="並べ方">
           <option value="verdict">判断の順</option>
-          <option value="cheap">いつもより安い順</option>
+          <option value="cheap">3日で下がった順</option>
           <option value="asia">他サーバーより安い順</option>
           <option value="price">値段の高い順</option>
         </select>
         <input type="search" id="f-q" placeholder="名前で探す" aria-label="名前で探す">
       </div>
       <div class="list">
-        <div class="head"><span>名前</span><span>今の値段</span><span>いつもより</span><span>他サーバーより</span><span>1週間の動き</span><span>判断</span></div>
+        <div class="head"><span>名前</span><span>今の値段</span><span>自鯖 3日</span><span>他鯖 3日</span><span>他サーバーより</span><span>3日の動き</span><span>判断</span></div>
         <div id="items"></div>
       </div>
     </div>
@@ -201,11 +217,11 @@ footer a, .notes a { color: var(--accent); }
     <div id="pane-help" class="notes" hidden>
       <ul>
         <li>値段は取引所の最安の出品価格(実際に売れた値段ではない)。<a href="https://aion2.exchange/" target="_blank" rel="noopener">Aion2Market</a> から6時間ごとに自動で取得</li>
-        <li><b>いつもより</b>: この1週間のアリエル鯖の値段の真ん中(中央値)との差</li>
+        <li><b>自鯖 3日</b>: アリエルの今の値段と3日前の値段の差。<b>他鯖 3日</b>: アジアの他の6サーバーそれぞれの3日の差の、真ん中の値(6時間ごとに取り直す)</li>
         <li><b>他サーバーより</b>: アジアの他のサーバー(先行サーバーを除く6つ)の値段の真ん中との差。マイナスはアリエルのほうが安い</li>
-        <li><b>買い時</b>: いつもより15%以上安い、または他サーバーより20%以上安い(もう一方で高い物と、先行サーバーで下がっている物は除く)</li>
-        <li><b>売り時</b>: いつもより20%以上高い、または他サーバーより25%以上高い</li>
-        <li><b>上がりそう / 下がりそう</b>: 先行サーバー(Siel・Nezekan・Vaizel)で1週間に10%以上動き、アリエルがまだ追いついていない物</li>
+        <li><b>買い時</b>: 3日で15%以上下がり、しかも他鯖の3日より10ポイント以上大きく下がった物(全サーバーで下がっている物は相場全体の下落なので除く)。または他サーバーより20%以上安い物。もう一方で高い物と、先行サーバーで下がっている物は除く</li>
+        <li><b>売り時</b>: 3日で20%以上上がり、他鯖の3日より10ポイント以上大きく上がった物。または他サーバーより25%以上高い物</li>
+        <li><b>上がりそう / 下がりそう</b>: 先行サーバー(Siel・Nezekan・Vaizel)で3日に10%以上動き、アリエルがまだ追いついていない物</li>
         <li>北米・欧州・南米のサーバーは通貨の価値が違うので、行を開いたときの参考値</li>
         <li>レアリティは名前の段階から付けています(職人の・職人の光る=希少、達人の=伝承、達人の光る・真龍王=唯一)。素材は「高純度=希少、純粋=伝承、煌めく=唯一」と推定</li>
         <li>出品が3件未満の物は、1人の出品で値段が大きく変わるので「今日の結論」には出しません</li>
@@ -265,11 +281,12 @@ footer a, .notes a { color: var(--accent); }
 
   // One plain-language line per pick: the strongest comparison only.
   function badge(r, mode) {
-    if (mode === 'watch') return [`先行サーバーで ${pct(r.early_ch7)}`, r.verdict === '上がりそう' ? 'hi' : 'lo'];
-    const c = [['いつもより', r.vs_wk], ['他サーバーより', r.vs_asia]].filter((x) => isNum(x[1]));
+    if (mode === 'watch') return [`先行サーバーで3日 ${pct(r.early_ch3)}`, r.verdict === '上がりそう' ? 'hi' : 'lo'];
+    const c = [['3日', r.ch3], ['他サーバー', r.vs_asia]].filter((x) => isNum(x[1]));
     if (!c.length) return ['', ''];
-    const pickOne = mode === 'buy' ? c.reduce((a, b) => (b[1] < a[1] ? b : a)) : c.reduce((a, b) => (b[1] > a[1] ? b : a));
-    return [`${pickOne[0]} ${Math.abs(Math.round(pickOne[1]))}%${pickOne[1] < 0 ? '安い' : '高い'}`, pickOne[1] < 0 ? 'lo' : 'hi'];
+    const [k, v] = mode === 'buy' ? c.reduce((a, b) => (b[1] < a[1] ? b : a)) : c.reduce((a, b) => (b[1] > a[1] ? b : a));
+    const text = k === '3日' ? `3日で ${pct(v)}(他鯖 ${pct(r.asia_ch3)})` : `他サーバーより ${Math.abs(Math.round(v))}%${v < 0 ? '安い' : '高い'}`;
+    return [text, v < 0 ? 'lo' : 'hi'];
   }
 
   function pickList(box, rows, mode, emptyText) {
@@ -284,9 +301,9 @@ footer a, .notes a { color: var(--accent); }
 
   function drawBoard(items) {
     const mine = items.filter(solid);
-    const depth = (r) => Math.min(isNum(r.vs_wk) ? r.vs_wk : 0, isNum(r.vs_asia) ? r.vs_asia : 0);
-    const height = (r) => Math.max(isNum(r.vs_wk) ? r.vs_wk : 0, isNum(r.vs_asia) ? r.vs_asia : 0);
-    const lead = (r) => Math.abs(isNum(r.early_ch7) ? r.early_ch7 : 0);
+    const depth = (r) => Math.min(isNum(r.ch3) ? r.ch3 : 0, isNum(r.vs_asia) ? r.vs_asia : 0);
+    const height = (r) => Math.max(isNum(r.ch3) ? r.ch3 : 0, isNum(r.vs_asia) ? r.vs_asia : 0);
+    const lead = (r) => Math.abs(isNum(r.early_ch3) ? r.early_ch3 : 0);
     pickList($('#pick-buy'), mine.filter((r) => r.verdict === '買い時').sort((a, b) => depth(a) - depth(b)).slice(0, 7), 'buy', '今はっきり安い物はありません');
     pickList($('#pick-sell'), mine.filter((r) => r.verdict === '売り時').sort((a, b) => height(b) - height(a)).slice(0, 7), 'sell', '今はっきり高い物はありません');
     pickList($('#pick-watch'), mine.filter((r) => r.verdict === '上がりそう' || r.verdict === '下がりそう').sort((a, b) => lead(b) - lead(a)).slice(0, 7), 'watch', '目立った先行の動きはありません');
@@ -332,19 +349,36 @@ footer a, .notes a { color: var(--accent); }
     }
   }
 
+  let FORECAST = [];
+  const forecastFor = (r) => FORECAST.find((f) => f.match && new RegExp(f.match).test(r.name_en));
+
+  function drawForecast() {
+    const box = $('#forecast'); box.replaceChildren();
+    for (const f of FORECAST) {
+      const a = el('article'), top = el('div', 'top');
+      top.append(el('h3', '', f.item), el('span', 'conf', '確からしさ: ' + f.confidence));
+      const was = el('p', 'kr-was'); was.append(el('b', '', `韓国(${f.when}): `), document.createTextNode(f.korea));
+      a.append(top, was, el('p', 'next', '→ 予想: ' + f.forecast), el('small', '', '出典: ' + f.source));
+      box.append(a);
+    }
+  }
+
   function detail(r) {
     const d = el('div', 'detail');
     if (r.reason) d.append(el('p', 'note', r.reason));
+    const f = forecastFor(r);
+    if (f) d.append(el('p', 'fcline', `韓国では(${f.when}): ${f.korea} → 予想: ${f.forecast}`));
     const g = el('dl', 'grid');
     const add = (k, v, cls) => { const w = el('div'); w.append(el('dt', '', k), el('dd', 'num ' + (cls || ''), v)); g.append(w); };
     add('出品数', isNum(r.listings) ? r.listings + '件' : '—');
-    add('24時間の動き', pct(r.ch24), tone(r.ch24));
-    add('1週間の動き', pct(r.ch7), tone(r.ch7));
-    add('いつもの値段', gina(r.wk_med));
+    add('自鯖 24時間', pct(r.ch24), tone(r.ch24));
+    add('自鯖 3日', pct(r.ch3), tone(r.ch3));
+    add('他鯖 3日', pct(r.asia_ch3), tone(r.asia_ch3));
+    add('先行サーバー 3日', pct(r.early_ch3), tone(r.early_ch3));
+    add('自鯖 1週間', pct(r.ch7), tone(r.ch7));
     add('1週間の最安', gina(r.wk_low));
     add('アジアの他サーバー', gina(r.asia_med));
     add('先行サーバー', gina(r.early_med));
-    add('先行サーバーの1週間', pct(r.early_ch7), tone(r.early_ch7));
     add('北米・欧州・南米', gina(r.global_med));
     add('英語名', r.name_en);
     d.append(g);
@@ -358,7 +392,7 @@ footer a, .notes a { color: var(--accent); }
     const nz = (v) => (isNum(v) ? v : 1e9);
     rows.sort({
       verdict: (a, b) => (ORDER[a.verdict] - ORDER[b.verdict]) || ((b.tier || 0) - (a.tier || 0)) || a.name.localeCompare(b.name, 'ja'),
-      cheap: (a, b) => nz(a.vs_wk) - nz(b.vs_wk),
+      cheap: (a, b) => nz(a.ch3) - nz(b.ch3),
       asia: (a, b) => nz(a.vs_asia) - nz(b.vs_asia),
       price: (a, b) => (isNum(b.price) ? b.price : -1) - (isNum(a.price) ? a.price : -1),
     }[sort]);
@@ -369,7 +403,7 @@ footer a, .notes a { color: var(--accent); }
       const nm = name(r); nm.append(el('small', '', r.kind + (r.listings ? ` ・ 出品${r.listings}件` : ' ・ 出品なし')));
       const pc = el('span', 'pc'); pc.append(el('span', 'pill ' + r.verdict, r.verdict));
       const sp = el('span', 'sp'); sp.append(spark(r.spark));
-      s.append(nm, el('span', 'r num p', gina(r.price)), el('span', 'r num wk ' + tone(r.vs_wk), pct(r.vs_wk)), el('span', 'r num va ' + tone(r.vs_asia), pct(r.vs_asia)), sp, pc);
+      s.append(nm, el('span', 'r num p', gina(r.price)), el('span', 'r num c3 ' + tone(r.ch3), pct(r.ch3)), el('span', 'r num o3 ' + tone(r.asia_ch3), pct(r.asia_ch3)), el('span', 'r num va ' + tone(r.vs_asia), pct(r.vs_asia)), sp, pc);
       det.append(s);
       det.addEventListener('toggle', () => { if (det.open && det.children.length === 1) det.append(detail(r)); });
       box.append(det);
@@ -403,7 +437,8 @@ footer a, .notes a { color: var(--accent); }
   Promise.all([load('items.json'), load('crafts.json'), load('korea_taiwan.json')]).then(([it, cr, kr]) => {
     ITEMS = it.rows;
     $('#time').textContent = timeText((it.meta && it.meta.captured_at) || (ITEMS[0] && ITEMS[0].captured_at));
-    drawBoard(ITEMS); drawCrafts(cr.rows); drawKorea(kr.rows);
+    FORECAST = kr.forecast || [];
+    drawBoard(ITEMS); drawCrafts(cr.rows); drawForecast(); drawKorea(kr.rows);
     let saved = null; try { saved = localStorage.getItem('tab'); } catch (e) {}
     show(saved && document.querySelector(`.tab[data-tab="${saved}"]`) ? saved : '製作武器');
   }).catch((e) => { $('#time').textContent = 'データを読み込めませんでした(' + e.message + ')。少し待って再読み込みしてください'; });
