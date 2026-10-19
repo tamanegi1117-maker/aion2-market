@@ -55,8 +55,17 @@ section > header p { margin: 0; color: var(--muted); font-size: .85rem; }
 .pick .pr { font-weight: 600; text-align: right; }
 .pick .sub { font-size: .8rem; color: var(--muted); }
 .pick .badge { text-align: right; font-size: .8rem; font-weight: 600; white-space: nowrap; }
-.pick .mv { grid-column: 1 / -1; font-size: .76rem; color: var(--muted); font-family: var(--num); }
-.pick .mv b { font-weight: 600; }
+/* 3-day graph: Ariel's line on the left, own vs other servers' change as bars from 0% on the right */
+.mv { grid-column: 1 / -1; display: grid; grid-template-columns: 108px 1fr; gap: 12px; align-items: center; margin-top: 4px; }
+.mv svg { display: block; }
+.db { display: grid; gap: 3px; font-size: .72rem; }
+.db .row { display: grid; grid-template-columns: 2.6em 1fr 3.6em; gap: 6px; align-items: center; }
+.db .lab { color: var(--muted); }
+.db .track { position: relative; height: 8px; background: var(--panel2); border-radius: 4px; }
+.db .track::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--muted); opacity: .6; }
+.db .bar { position: absolute; top: 0; bottom: 0; border-radius: 4px; }
+.db .bar.lo { background: var(--buy); } .db .bar.hi { background: var(--up); }
+.db .v { text-align: right; font-family: var(--num); }
 .none { color: var(--muted); font-size: .85rem; margin: 6px 0 10px; }
 
 /* Craft or buy */
@@ -283,13 +292,13 @@ footer a, .notes a { color: var(--accent); }
     return `データの時刻: ${j.getUTCMonth() + 1}/${j.getUTCDate()} ${p(j.getUTCHours())}:${p(j.getUTCMinutes())}(日本時間、${h < 1 ? '1時間以内' : h + '時間前'})`;
   }
 
-  function spark(s) {
+  function spark(s, W = 84, H = 24) {
     const pts = String(s || '').split(',').map(Number).filter((x) => x > 0);
     const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
-    svg.setAttribute('width', '84'); svg.setAttribute('height', '24'); svg.setAttribute('viewBox', '0 0 84 24'); svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('width', W); svg.setAttribute('height', H); svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('aria-hidden', 'true');
     if (pts.length < 2) return svg;
     const lo = Math.min(...pts), hi = Math.max(...pts), span = hi - lo || 1;
-    const xy = pts.map((v, i) => [2 + (80 * i) / (pts.length - 1), 21 - (18 * (v - lo)) / span]);
+    const xy = pts.map((v, i) => [2 + ((W - 4) * i) / (pts.length - 1), (H - 3) - ((H - 6) * (v - lo)) / span]);
     const last = pts[pts.length - 1], first = pts[0];
     const color = last < first ? 'var(--buy)' : last > first ? 'var(--up)' : 'var(--muted)';
     const path = document.createElementNS(ns, 'path');
@@ -312,10 +321,25 @@ footer a, .notes a { color: var(--accent); }
     return [text, v < 0 ? 'lo' : 'hi'];
   }
 
-  // "3日: 自鯖 -18% / 他鯖 -2%" line used on every pick.
+  // 3-day graph used on every pick: Ariel's price line, then own vs other servers' change as bars.
+  // Bars share one scale, -50%..+50% across the track (longer moves are drawn at the edge).
   function moves(r) {
-    const m = el('span', 'mv'); m.append(document.createTextNode('3日: 自鯖 '));
-    m.append(el('b', tone(r.ch3), pct(r.ch3)), document.createTextNode(' / 他鯖 '), el('b', tone(r.asia_ch3), pct(r.asia_ch3)));
+    const m = el('div', 'mv');
+    m.append(spark(r.spark, 108, 30));
+    const db = el('div', 'db');
+    for (const [lab, v] of [['自鯖', r.ch3], ['他鯖', r.asia_ch3]]) {
+      const row = el('div', 'row'), track = el('div', 'track');
+      if (isNum(v) && v !== 0) {
+        const w = Math.min(50, Math.abs(v));
+        const bar = el('div', 'bar ' + (v < 0 ? 'lo' : 'hi'));
+        bar.style.width = w + '%'; bar.style[v < 0 ? 'right' : 'left'] = '50%';
+        track.append(bar);
+      }
+      row.append(el('span', 'lab', lab), track, el('span', 'v ' + tone(v), pct(v)));
+      db.append(row);
+    }
+    m.append(db);
+    m.setAttribute('aria-label', `3日の動き: 自鯖 ${pct(r.ch3)}、他鯖 ${pct(r.asia_ch3)}`);
     return m;
   }
 
