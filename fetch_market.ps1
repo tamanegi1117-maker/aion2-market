@@ -143,8 +143,10 @@ $fetchServers = if ($doFull) { $servers } else { @($servers | Where-Object { $_.
 $sections = 'weapons', 'accessories', 'materials'
 function Test-Wanted([string]$sec, $it) {
     switch ($sec) {
-        'weapons'     { return $it.name -match 'Orichalcum|Yggdrasil|Truth|True Dragon Lord' }
-        'accessories' { return $it.name -match 'Diamond|Ruby|Sapphire|True Dragon Lord' }
+        # Up to the legendary tier only the Splendent (光る) result feeds the next step, so the
+        # plain base / Expert's / Artisan's items (ranks 1, 3, 5) are left out.
+        'weapons'     { return $it.name -match 'Orichalcum|Yggdrasil|Truth|True Dragon Lord' -and (Convert-EquipName $it.name).rank -notin 1, 3, 5 }
+        'accessories' { return $it.name -match 'Diamond|Ruby|Sapphire|True Dragon Lord' -and (Convert-EquipName $it.name).rank -notin 1, 3, 5 }
         'materials'   { return $it.category.id -in 53, 54 }
     }
 }
@@ -184,6 +186,7 @@ if (-not $doFull) {
     $secCode = @{ '製作武器' = 'weapons'; '製作装飾品' = 'accessories'; '素材' = 'materials' }
     foreach ($pr in $prevData.rows) {
         $k = [string]$pr.key
+        if ($pr.section -ne '素材' -and [int]$pr.tier -in 1, 3, 5) { continue }
         if (-not $obs.ContainsKey($k)) {
             $obs[$k] = @{ sec = $secCode[$pr.section]; en = $pr.name_en; home = $null
                           asia = @(); early = @(); global = @(); chEarly = @(); chAsia = @(); chGlobal = @() }
