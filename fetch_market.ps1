@@ -14,6 +14,8 @@ $base = 'https://aion2.exchange/api'
 $outDir = Join-Path $PSScriptRoot 'data'
 New-Item -ItemType Directory -Force $outDir | Out-Null
 $matNames = (Get-Content -Raw -Encoding UTF8 (Join-Path $PSScriptRoot 'names_ja.json') | ConvertFrom-Json).materials
+# What happened on the Korean server at the same stage (hand-written), used for the 1-month outlook.
+$krForecast = @((Get-Content -Raw -Encoding UTF8 (Join-Path $PSScriptRoot 'data/korea_taiwan.json') | ConvertFrom-Json).forecast)
 
 function Get-Api([string]$path) {
     for ($i = 1; $i -le 4; $i++) {
@@ -306,6 +308,23 @@ $rows = foreach ($k in $obs.Keys) {
     if ($rise -or $fall) { $why += ('先行サーバーで3日{0}' -f (& $sign $earlyCh3)) }
     if ($price -and $listings -lt 3) { $why += '出品が少なく参考程度' }
 
+    # Outlook for the next few days: early-access servers lead by days (heaviest weight),
+    # gaps to the other Asia servers tend to close, and the Asia-wide 3-day trend carries on.
+    # Each term is capped at +-30 so one extreme listing cannot decide it alone.
+    $cap = { param($v) [math]::Max(-30, [math]::Min(30, $v)) }
+    $terms = @()
+    if ($null -ne $earlyCh3) { $terms += , @((& $cap (0.6 * $earlyCh3)), ('先行サーバーが3日で{0}' -f (& $sign $earlyCh3))) }
+    if ($null -ne $vsAsia)   { $terms += , @((& $cap (-0.3 * $vsAsia)), ('他サーバーより{0}{1}(差は縮まりやすい)' -f [math]::Round([math]::Abs($vsAsia)), $(if ($vsAsia -lt 0) { '%安い' } else { '%高い' }))) }
+    if ($null -ne $asiaCh3)  { $terms += , @((& $cap (0.2 * $asiaCh3)), ('アジア全体が3日で{0}' -f (& $sign $asiaCh3))) }
+    $score = 0.0; foreach ($tm in $terms) { $score += $tm[0] }
+    $fcShort = if (-not $price -or -not $terms) { '' } elseif ($score -ge 8) { '上がる' } elseif ($score -le -8) { '下がる' } else { '横ばい' }
+    $fcShortWhy = (@($terms | Where-Object { [math]::Abs($_[0]) -ge 3 } | Sort-Object { -[math]::Abs($_[0]) } | ForEach-Object { $_[1] })) -join ' / '
+
+    # Outlook for about a month: what the Korean server did at the same stage.
+    $kr = $krForecast | Where-Object { $_.match -and $o.en -match $_.match } | Select-Object -First 1
+    if (-not $kr) { $kr = $krForecast | Where-Object { -not $_.match } | Select-Object -First 1 }
+    $fcMid = switch ($kr.trend) { 'down' { '下がる' } 'up' { '上がる' } default { '横ばい' } }
+
     [pscustomobject][ordered]@{
         key = $k; name = $ja; name_en = $o.en
         section = @{ weapons = '製作武器'; accessories = '製作装飾品'; materials = '素材' }[$o.sec]
@@ -324,6 +343,8 @@ $rows = foreach ($k in $obs.Keys) {
         global_ch7 = $(if ($o.chGlobal.Count) { [math]::Round((Get-Median $o.chGlobal), 1) } else { $null })
         vs_wk = $vsWk; vs_asia = $vsAsia; vs_early = $vsEarly; vs_global = $vsGlobal
         verdict = $verdict; reason = ($why -join ' / ')
+        fc_short = $fcShort; fc_score = [math]::Round($score, 1); fc_short_why = $fcShortWhy
+        fc_mid = $(if ($price) { $fcMid } else { '' }); fc_mid_item = $kr.item
         spark = $(if ($pts) { ($pts | Where-Object { $_.t -ge $since3d } | ForEach-Object { [long]$_.p }) -join ',' } else { '' })
         captured_at = $capturedAt
     }
@@ -337,11 +358,20 @@ $rows = @($rows | Sort-Object { $_.section }, { $_.kind }, { $_.tier }, { $_.nam
 $homePrice = @{}
 foreach ($k in $obs.Keys) { $h = $obs[$k].home; if ($h -and $h.listed -and $h.price) { $homePrice[$k] = [double]$h.price } }
 
+$prevCraftsFile = Join-Path $outDir 'crafts.json'
+$prevCrafts = if (Test-Path $prevCraftsFile) { try { @((Get-Content -Raw -Encoding UTF8 $prevCraftsFile | ConvertFrom-Json).rows) } catch { @() } } else { @() }
 $c = Get-Api "crafts?server=$HomeServer"
 $crafts = foreach ($t in $c.targets) {
     if ($t.category -notin 'Weapon', 'Accessory') { continue }
     $n = Convert-EquipName $t.name
-    $detail = Get-Api "crafts/$($t.target_key)?server=$HomeServer"
+    # A failed recipe lookup keeps the previous result for that item instead of stopping the run.
+    try { $detail = Get-Api "crafts/$($t.target_key)?server=$HomeServer" }
+    catch {
+        $skipped += "craft/$($t.target_key)"
+        $old = $prevCrafts | Where-Object { $_.key -eq [string]$t.target_key } | Select-Object -First 1
+        if ($old) { $old }
+        continue
+    }
     $steps = @($detail.steps | Sort-Object step_no)
     $last = $steps.Count
 
