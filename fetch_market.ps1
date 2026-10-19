@@ -11,9 +11,9 @@ New-Item -ItemType Directory -Force $outDir | Out-Null
 $matNames = (Get-Content -Raw -Encoding UTF8 (Join-Path $PSScriptRoot 'names_ja.json') | ConvertFrom-Json).materials
 
 function Get-Api([string]$path) {
-    for ($i = 1; $i -le 3; $i++) {
+    for ($i = 1; $i -le 4; $i++) {
         try { return Invoke-RestMethod "$base/$path" -TimeoutSec 60 }
-        catch { if ($i -eq 3) { throw "API failed ($path): $($_.Exception.Message)" }; Start-Sleep -Seconds (3 * $i) }
+        catch { if ($i -eq 4) { throw "API failed ($path): $($_.Exception.Message)" }; Start-Sleep -Seconds (5 * $i) }
     }
 }
 
@@ -73,6 +73,20 @@ function Get-MaterialGroup([string]$en) {
     }
 }
 
+# Rarity: equipment from its tier name; materials estimated from the grade word in the name.
+function Get-Rarity([string]$en, [int]$rank) {
+    if ($rank -ge 7) { return '唯一' }
+    if ($rank -ge 5) { return '伝承' }
+    if ($rank -ge 3) { return '希少' }
+    if ($rank -ge 1) { return '一般' }
+    switch -Regex ($en) {
+        '^Radiant |Wrathful|Ultimate' { return '唯一' }
+        "^Pure |^Artisan's"           { return '伝承' }
+        "^Fine |^Expert's"            { return '希少' }
+        default                       { return '一般' }
+    }
+}
+
 # Items the user crafts (longsword, guard, ring, necklace) and the materials they need.
 function Test-Mine([string]$sec, [string]$en) {
     if ($sec -eq 'weapons') { return $en -match 'Longsword|Guard' }
@@ -101,11 +115,14 @@ function Test-Wanted([string]$sec, $it) {
 
 # --- Collect prices ----------------------------------------------------------------------
 $obs = @{}
+$skipped = @()
 $capturedAt = $null
 foreach ($s in $servers) {
     $g = Get-Group $s
     foreach ($sec in $sections) {
-        $r = Get-Api "items?section=$sec&server=$($s.server_id)&offset=0&limit=500&window=7d"
+        # Another server failing only drops it from the comparison; the home server must load.
+        try { $r = Get-Api "items?section=$sec&server=$($s.server_id)&offset=0&limit=500&window=7d" }
+        catch { if ($g -eq 'home') { throw }; $skipped += "$($s.server_id)/$sec"; continue }
         foreach ($it in $r.items) {
             if (-not (Test-Wanted $sec $it)) { continue }
             $k = [string]$it.item_key
@@ -190,7 +207,7 @@ $rows = foreach ($k in $obs.Keys) {
     [pscustomobject][ordered]@{
         key = $k; name = $ja; name_en = $o.en
         section = @{ weapons = '製作武器'; accessories = '製作装飾品'; materials = '素材' }[$o.sec]
-        kind = $kind; tier = $rank; mine = $(if (Test-Mine $o.sec $o.en) { '○' } else { '' })
+        kind = $kind; tier = $rank; rarity = Get-Rarity $o.en $rank; mine = $(if (Test-Mine $o.sec $o.en) { '○' } else { '' })
         price = Round-Price $price; listings = $listings
         ch24 = $(if ($null -ne $ch24[$k]) { [math]::Round($ch24[$k], 1) } else { $null }); ch7 = $ch7
         wk_med = Round-Price $wkMed; wk_low = Round-Price $wkLow
@@ -207,20 +224,64 @@ $rows = foreach ($k in $obs.Keys) {
 $rows = @($rows | Sort-Object { $_.section }, { $_.kind }, { $_.tier }, { $_.name })
 
 # --- Craft or buy (home server) ----------------------------------------------------------
+# The Splendent (光る) result comes 1 time in 4 (combo 25%), so each step is made 4 times and
+# its Splendent result feeds the next step: step i of n is made 4^(n-i+1) times.
+# Success rate and the sale of the 3 plain results are left out, as the user asked.
+$homePrice = @{}
+foreach ($k in $obs.Keys) { $h = $obs[$k].home; if ($h -and $h.listed -and $h.price) { $homePrice[$k] = [double]$h.price } }
+
 $c = Get-Api "crafts?server=$HomeServer"
 $crafts = foreach ($t in $c.targets) {
     if ($t.category -notin 'Weapon', 'Accessory') { continue }
     $n = Convert-EquipName $t.name
-    $cost = [double]$t.cost_market
+    $detail = Get-Api "crafts/$($t.target_key)?server=$HomeServer"
+    $steps = @($detail.steps | Sort-Object step_no)
+    $last = $steps.Count
+
+    $stepRows = foreach ($s in $steps) {
+        $times = [math]::Pow(4, $last - $s.step_no + 1)
+        $missing = $false
+        $mats = foreach ($m in $s.materials) {
+            $unit = if ($m.unit_price) { [double]$m.unit_price } elseif ($m.listing_price) { [double]$m.listing_price } else { $missing = $true; $null }
+            $mja = if ($matNames.$($m.name)) { $matNames.$($m.name) } else { $m.name }
+            [pscustomobject][ordered]@{
+                name = $mja; rarity = Get-Rarity $m.name 0; qty = [int]($m.per_attempt * $times)
+                unit = Round-Price $unit; subtotal = $(if ($null -ne $unit) { Round-Price ($unit * $m.per_attempt * $times) } else { $null })
+            }
+        }
+        $rn = Convert-EquipName $s.result_name
+        [pscustomobject][ordered]@{
+            step = [int]$s.step_no; result = $rn.ja; result_key = [string]$s.result_key; rarity = Get-Rarity $s.result_name $rn.rank
+            times = [int]$times; missing = $missing
+            cost = Round-Price (($mats | Where-Object { $null -ne $_.subtotal } | Measure-Object subtotal -Sum).Sum)
+            mats = @($mats)
+        }
+    }
+
+    # Routes: make everything, or buy the Splendent result of an earlier step and make the rest.
+    $routes = @()
+    for ($from = 1; $from -le $last; $from++) {
+        $part = @($stepRows | Where-Object { $_.step -ge $from })
+        if ($part | Where-Object { $_.missing }) { continue }
+        $sum = ($part | Measure-Object cost -Sum).Sum
+        if ($from -eq 1) { $routes += [pscustomobject][ordered]@{ label = '全部作る'; from = 1; cost = Round-Price $sum; buy_item = $null; buy_qty = 0; buy_unit = $null } ; continue }
+        $prev = $stepRows | Where-Object { $_.step -eq $from - 1 }
+        $p = $homePrice[$prev.result_key]
+        if (-not $p) { continue }
+        $qty = ($stepRows | Where-Object { $_.step -eq $from }).times
+        $routes += [pscustomobject][ordered]@{ label = "$($prev.result)を買って作る"; from = $from; cost = Round-Price ($sum + $p * $qty); buy_item = $prev.result; buy_qty = [int]$qty; buy_unit = Round-Price $p }
+    }
+    $best = $routes | Sort-Object cost | Select-Object -First 1
     $mkt = if ($t.market_price -gt 0) { [double]$t.market_price } else { $null }
-    $gap = Get-Pct $mkt $cost
-    $v = if (-not $mkt) { '作るしかない' } elseif ($gap -ge 5) { '作る' } elseif ($gap -le -5) { '買う' } else { 'ほぼ同じ' }
+    $gap = if ($best) { Get-Pct $mkt $best.cost } else { $null }
+    $v = if (-not $best) { '買う' } elseif (-not $mkt) { '作るしかない' } elseif ($gap -ge 5) { '作る' } elseif ($gap -le -5) { '買う' } else { 'ほぼ同じ' }
     [pscustomobject][ordered]@{
-        key = [string]$t.target_key; name = $n.ja; name_en = $t.name
+        key = [string]$t.target_key; name = $n.ja; name_en = $t.name; rarity = Get-Rarity $t.name $n.rank
         section = $(if ($t.category -eq 'Weapon') { '製作武器' } else { '製作装飾品' })
         mine = $(if ($t.name -match 'Longsword|Guard| Ring$|Necklace') { '○' } else { '' })
-        cost = Round-Price $cost; price = Round-Price $mkt; listings = [int]$t.listings
-        gap = $gap; verdict = $v; captured_at = $c.captured_at
+        price = Round-Price $mkt; listings = [int]$t.listings
+        best = $(if ($best) { $best.label } else { $null }); cost = $(if ($best) { $best.cost } else { $null })
+        gap = $gap; verdict = $v; routes = @($routes); steps = @($stepRows); captured_at = $c.captured_at
     }
 }
 $crafts = @($crafts | Sort-Object { $_.section }, { -[double]$(if ($null -ne $_.gap) { $_.gap } else { 999 }) })
@@ -229,9 +290,10 @@ $crafts = @($crafts | Sort-Object { $_.section }, { -[double]$(if ($null -ne $_.
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 $meta = [ordered]@{ captured_at = $capturedAt; home = $HomeServer; asia_servers = $groupCount.asia; early_servers = $groupCount.early; global_servers = $groupCount.global }
 [IO.File]::WriteAllText((Join-Path $outDir 'items.json'), (@{ meta = $meta; rows = $rows } | ConvertTo-Json -Depth 5 -Compress), $utf8)
-[IO.File]::WriteAllText((Join-Path $outDir 'crafts.json'), (@{ rows = $crafts } | ConvertTo-Json -Depth 5 -Compress), $utf8)
+[IO.File]::WriteAllText((Join-Path $outDir 'crafts.json'), (@{ rows = $crafts } | ConvertTo-Json -Depth 10 -Compress), $utf8)
 
 # --- Short summary (keep it small: this is what Claude reads) -----------------------------
+"skipped: $($skipped.Count) $($skipped -join ',')"
 "captured_at: $capturedAt  servers: asia=$($groupCount.asia) early=$($groupCount.early) global=$($groupCount.global)  rows=$($rows.Count) crafts=$($crafts.Count)"
 foreach ($sec in '製作武器', '製作装飾品', '素材') {
     $s = @($rows | Where-Object { $_.section -eq $sec })

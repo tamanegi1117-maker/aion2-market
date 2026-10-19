@@ -6,55 +6,77 @@
 <title>AION2 相場ボード</title>
 <meta name="robots" content="noindex">
 <style>
-/* Layout: one column; verdict board on top (buy / sell / watch), then tabbed item lists that fold open per row. */
+/* Layout: dark, game-like single column. Order = what a first-time reader needs:
+   what this page is -> today's answer (buy / sell / watch) -> craft or buy -> full lists. */
 :root {
-  --bg: #f6f7fa; --panel: #ffffff; --fg: #1b2030; --muted: #667089; --line: #e1e4ec;
-  --accent: #3b5bdb; --gold: #b07a12;
-  --buy: #1f8a4c; --buy-bg: #e5f5ec; --sell: #c2410c; --sell-bg: #fdeee5;
-  --up: #b4232f; --up-bg: #fbe9eb; --down: #5b61b8; --down-bg: #ecedf9; --wait-bg: #eef0f4;
+  --bg: #0f131b; --panel: #171c27; --panel2: #1e2432; --fg: #e9ecf3; --muted: #97a0b5; --line: #2a3142;
+  --accent: #7fa2ff;
+  --r-common: #eef0f5; --r-rare: #5fd38a; --r-legend: #5aa9ff; --r-unique: #f0b84a;
+  --buy: #5fd38a; --buy-bg: #173326; --sell: #ffa26b; --sell-bg: #3a2519;
+  --up: #ff8a95; --up-bg: #3a1d22; --down: #b3b8ff; --down-bg: #252845; --wait-bg: #252b39;
   --font: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", "Noto Sans JP", system-ui, sans-serif;
   --num: ui-monospace, "SF Mono", "Cascadia Mono", "Consolas", monospace;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #12151d; --panel: #1b1f2a; --fg: #e7e9f0; --muted: #98a0b6; --line: #2c3242;
-    --accent: #8ea4ff; --gold: #e2b155;
-    --buy: #5fd394; --buy-bg: #163325; --sell: #ff9d6b; --sell-bg: #3a2318;
-    --up: #ff8a95; --up-bg: #3a1c21; --down: #a9aef5; --down-bg: #23263f; --wait-bg: #232836;
-    color-scheme: dark;
-  }
+  color-scheme: dark;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 var(--font); }
-.wrap { max-width: 1080px; margin: 0 auto; padding-block: 20px 48px;
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.65 var(--font); }
+.wrap { max-width: 1060px; margin: 0 auto; padding-block: 24px 56px;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
-  display: grid; gap: 20px; }
-h1 { margin: 0; font-size: 1.5rem; letter-spacing: .02em; }
-h2 { margin: 0; font-size: 1.05rem; }
-.sub { margin: 0; color: var(--muted); font-size: .85rem; }
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
+.wrap > * { min-width: 0; }
+h1 { margin: 0; font-size: 1.6rem; letter-spacing: .03em; }
+h2 { margin: 0; font-size: 1.15rem; }
+.lead { margin: 4px 0 0; color: var(--muted); }
 .num { font-family: var(--num); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+section > header { display: grid; gap: 2px; margin-bottom: 12px; }
+section > header p { margin: 0; color: var(--muted); font-size: .85rem; }
 
-/* Verdict board */
+/* Rarity name colors */
+.r-一般 { color: var(--r-common); } .r-希少 { color: var(--r-rare); } .r-伝承 { color: var(--r-legend); } .r-唯一 { color: var(--r-unique); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .82rem; align-items: center; }
+.legend b { font-weight: 600; }
+.legend span::before { content: "■ "; }
+
+/* Intro box */
+.intro { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; display: grid; gap: 8px; font-size: .88rem; }
+.intro summary { cursor: pointer; font-weight: 600; }
+.intro ul { margin: 6px 0 0; padding-left: 1.2em; display: grid; gap: 4px; }
+
+/* Today's answer */
 .board { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
-.col { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 8px; align-content: start; min-width: 0; }
-.col h2 { display: flex; align-items: baseline; gap: 8px; }
-.col h2 small { color: var(--muted); font-weight: 400; font-size: .78rem; }
-.col.buy h2 { color: var(--buy); } .col.sell h2 { color: var(--sell); } .col.watch h2 { color: var(--accent); }
-.pick { display: grid; grid-template-columns: 1fr auto; gap: 0 10px; padding: 8px 0; border-top: 1px solid var(--line); }
-.pick:first-of-type { border-top: 0; }
-.pick b { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
-.pick .num { text-align: right; font-weight: 600; }
-.pick p { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: .8rem; }
-.none { color: var(--muted); font-size: .85rem; margin: 0; }
+.col { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px 6px; min-width: 0; }
+.col h3 { margin: 0 0 2px; font-size: 1.05rem; }
+.col > p { margin: 0 0 6px; color: var(--muted); font-size: .8rem; }
+.col.buy h3 { color: var(--buy); } .col.sell h3 { color: var(--sell); } .col.watch h3 { color: var(--accent); }
+.pick { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; padding: 9px 0; border-top: 1px solid var(--line); align-items: baseline; }
+.pick .nm { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.pick .pr { font-weight: 600; text-align: right; }
+.pick .sub { font-size: .8rem; color: var(--muted); }
+.pick .badge { text-align: right; font-size: .8rem; font-weight: 600; white-space: nowrap; }
+.none { color: var(--muted); font-size: .85rem; margin: 6px 0 10px; }
 
-/* Craft or buy strip */
-.crafts { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 10px; }
-.craft-list { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); }
-.craft { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 2px; }
-.craft .row { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
-.craft small { color: var(--muted); font-size: .78rem; }
+/* Craft or buy */
+.crafts { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); align-items: start; }
+.craft { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; align-content: start; }
+.craft .top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.craft .top b { font-size: 1.02rem; }
+.craft .say { font-weight: 600; }
+.bars { display: grid; gap: 6px; }
+.bar { display: grid; grid-template-columns: minmax(0, 11rem) 1fr auto; gap: 10px; align-items: center; font-size: .82rem; }
+.bar .lab { overflow-wrap: anywhere; }
+.bar .track { height: 10px; background: var(--panel2); border-radius: 5px; overflow: hidden; }
+.bar .fill { height: 100%; border-radius: 5px; background: #4a5470; }
+.bar.best .fill { background: var(--buy); }
+.bar.best .lab, .bar.best .v { color: var(--buy); font-weight: 600; }
+.craft details summary { cursor: pointer; color: var(--accent); font-size: .85rem; }
+.steps { display: grid; gap: 10px; margin-top: 8px; }
+.step { background: var(--panel2); border-radius: 8px; padding: 8px 12px; font-size: .82rem; }
+.step h4 { margin: 0 0 4px; font-size: .85rem; font-weight: 600; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.step table { width: 100%; border-collapse: collapse; }
+.step td { padding: 2px 0; } .step td.n { text-align: right; white-space: nowrap; padding-left: 10px; }
+.note { margin: 0; color: var(--muted); font-size: .8rem; }
 
 /* Pills */
 .pill { display: inline-block; white-space: nowrap; border-radius: 999px; padding: 1px 10px; font-size: .78rem; font-weight: 600; background: var(--wait-bg); color: var(--muted); }
@@ -62,124 +84,136 @@ h2 { margin: 0; font-size: 1.05rem; }
 .pill.売り時, .pill.買う { background: var(--sell-bg); color: var(--sell); }
 .pill.上がりそう { background: var(--up-bg); color: var(--up); }
 .pill.下がりそう { background: var(--down-bg); color: var(--down); }
+.lo { color: var(--buy); } .hi { color: var(--up); } .mu { color: var(--muted); }
 
-/* Tabs and filters */
-.tabs { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--line); scrollbar-width: none; }
-.tab { font: inherit; font-size: .92rem; background: none; border: 0; border-bottom: 3px solid transparent; padding: 8px 12px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+/* Tabs, filters, list */
+.tabs { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--line); scrollbar-width: none; margin-bottom: 12px; }
+.tab { font: inherit; background: none; border: 0; border-bottom: 3px solid transparent; padding: 8px 14px; color: var(--muted); cursor: pointer; white-space: nowrap; }
 .tab[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
-.tools { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: .85rem; }
+.tools { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; font-size: .85rem; margin-bottom: 12px; }
 .tools label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
 .tools input[type=search], .tools select { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; }
 .tools input[type=search] { flex: 1 1 160px; min-width: 0; }
 button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-/* Item list: 5 columns on wide screens, a card on phones; tap a row for details */
 .list { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-.head, .item > summary { display: grid; grid-template-columns: minmax(0, 2.4fr) 88px 1fr 0.8fr 0.9fr 92px; gap: 10px; align-items: center; padding: 10px 14px; }
-.head { color: var(--muted); font-size: .78rem; border-bottom: 1px solid var(--line); }
-.head span:nth-child(n+3) { text-align: right; } .head span:last-child { text-align: center; }
+.head, .item > summary { display: grid; grid-template-columns: minmax(0, 2.3fr) 1fr 0.9fr 0.9fr 92px 92px; gap: 10px; align-items: center; padding: 10px 14px; }
+.head { color: var(--muted); font-size: .76rem; border-bottom: 1px solid var(--line); line-height: 1.3; }
+.head span:nth-child(n+2):nth-child(-n+4) { text-align: right; } .head span:nth-child(n+5) { text-align: center; }
 .item { border-bottom: 1px solid var(--line); }
 .item:last-child { border-bottom: 0; }
 .item > summary { list-style: none; cursor: pointer; }
 .item > summary::-webkit-details-marker { display: none; }
-.item > summary:hover { background: var(--bg); }
+.item > summary:hover { background: var(--panel2); }
 .item .nm { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
-.item .nm .mine { color: var(--gold); font-size: .75rem; margin-left: 6px; font-weight: 600; }
-.item .r { text-align: right; }
-.lo { color: var(--buy); } .hi { color: var(--up); } .mu { color: var(--muted); }
+.item .nm small { display: block; color: var(--muted); font-weight: 400; font-size: .74rem; }
+.item .r { text-align: right; } .item .pc { text-align: center; }
 .item svg { display: block; margin: 0 auto; }
 .detail { padding: 4px 14px 14px; display: grid; gap: 10px; }
-.detail .why { margin: 0; font-size: .85rem; }
-.grid { display: grid; gap: 6px 16px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); font-size: .85rem; }
+.grid { display: grid; gap: 6px 18px; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); font-size: .84rem; margin: 0; }
 .grid div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dashed var(--line); padding-bottom: 3px; }
 .grid dt { color: var(--muted); } .grid dd { margin: 0; }
 .empty { padding: 20px; color: var(--muted); text-align: center; }
-
 @media (max-width: 640px) {
   .head { display: none; }
-  .item > summary { grid-template-columns: 1fr auto; grid-template-areas: "nm pill" "price ch" "vs spark"; gap: 4px 10px; }
-  .item .nm { grid-area: nm; } .item .pc { grid-area: pill; }
-  .item .p { grid-area: price; text-align: left; font-size: 1.05rem; font-weight: 600; }
-  .item .c7 { grid-area: ch; } .item .va { grid-area: vs; text-align: left; } .item .sp { grid-area: spark; }
-  .item .c7::before { content: "7日 "; color: var(--muted); font-family: var(--font); font-size: .75rem; }
-  .item .va::before { content: "他鯖比 "; color: var(--muted); font-family: var(--font); font-size: .75rem; }
+  .item > summary { grid-template-columns: 1fr auto; grid-template-areas: "nm pc" "p sp" "wk va"; gap: 4px 10px; }
+  .item .nm { grid-area: nm; } .item .pc { grid-area: pc; } .item .sp { grid-area: sp; }
+  .item .p { grid-area: p; text-align: left; font-size: 1.05rem; font-weight: 600; }
+  .item .wk { grid-area: wk; text-align: left; } .item .va { grid-area: va; }
+  .item .wk::before { content: "いつもより "; } .item .va::before { content: "他サーバーより "; }
+  .item .wk::before, .item .va::before { color: var(--muted); font-family: var(--font); font-size: .74rem; }
+  .bar { grid-template-columns: minmax(0, 8rem) 1fr auto; }
 }
-
-/* Notes */
-.notes { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
-.notes ul { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; max-width: 72ch; }
 .kr { display: grid; gap: 10px; }
 .kr article { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; display: grid; gap: 4px; }
-.kr h3 { margin: 0; font-size: .95rem; }
-.kr p { margin: 0; font-size: .88rem; }
-.kr .to { color: var(--accent); }
-.kr small { color: var(--muted); font-size: .75rem; }
+.kr h3 { margin: 0; font-size: .95rem; } .kr p { margin: 0; font-size: .88rem; }
+.kr .to { color: var(--accent); } .kr small { color: var(--muted); font-size: .75rem; }
+.notes { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+.notes ul { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; max-width: 74ch; }
 footer { color: var(--muted); font-size: .78rem; }
-footer a { color: var(--accent); }
-@media (prefers-reduced-motion: no-preference) { .item[open] .detail { animation: fade .18s ease-out; } @keyframes fade { from { opacity: 0; } } }
+footer a, .notes a { color: var(--accent); }
+@media (prefers-reduced-motion: no-preference) { .item[open] .detail, .craft details[open] .steps { animation: fade .18s ease-out; } @keyframes fade { from { opacity: 0; } } }
 </style>
 </head>
 <body>
 <main class="wrap">
   <header>
     <h1>AION2 相場ボード</h1>
-    <p class="sub">アリエル鯖(天族)基準 ・ <span id="time">読み込み中…</span> ・ 長剣・ガーダー・指輪・首飾りと、その素材を中心に表示</p>
+    <p class="lead">アリエル鯖(天族)の取引所で、<b>今買うと得な物・売ると得な物</b>と、<b>装備は作るか買うか</b>をまとめたページです。<br>
+      <span id="time">読み込み中…</span></p>
   </header>
 
-  <section class="board" aria-label="今の判断">
-    <div class="col buy"><h2>今買う <small>いつもより安い</small></h2><div id="pick-buy"></div></div>
-    <div class="col sell"><h2>今売る <small>いつもより高い</small></h2><div id="pick-sell"></div></div>
-    <div class="col watch"><h2>様子を見る <small>アーリー鯖が先に動いた</small></h2><div id="pick-watch"></div></div>
-  </section>
-
-  <section class="crafts" aria-label="作るか買うか">
-    <h2>金の材料(達人の光る〇〇)は作るか買うか</h2>
-    <div class="craft-list" id="crafts"></div>
-  </section>
-
-  <nav class="tabs" role="tablist" aria-label="区分">
-    <button class="tab" role="tab" data-tab="製作武器">製作武器</button>
-    <button class="tab" role="tab" data-tab="製作装飾品">製作装飾品</button>
-    <button class="tab" role="tab" data-tab="素材">素材</button>
-    <button class="tab" role="tab" data-tab="韓国・台湾">韓国・台湾</button>
-    <button class="tab" role="tab" data-tab="見方">見方</button>
-  </nav>
-
-  <section id="pane-list">
-    <div class="tools">
-      <label><input type="checkbox" id="f-mine" checked> 自分が作る物だけ</label>
-      <label><input type="checkbox" id="f-big" checked> <span id="f-big-label">10万ギーナ未満を隠す</span></label>
-      <select id="f-sort" aria-label="並べ方">
-        <option value="verdict">判断の順</option>
-        <option value="cheap">他鯖より安い順</option>
-        <option value="drop">7日で下がった順</option>
-        <option value="price">値段の高い順</option>
-      </select>
-      <input type="search" id="f-q" placeholder="名前で探す" aria-label="名前で探す">
-    </div>
-    <div class="list" style="margin-top:12px">
-      <div class="head"><span>名前</span><span>判断</span><span>アリエル</span><span>7日</span><span>他鯖比</span><span>7日の動き</span></div>
-      <div id="items"></div>
-    </div>
-  </section>
-
-  <section id="pane-kr" class="kr" hidden></section>
-
-  <section id="pane-help" class="notes" hidden>
+  <details class="intro">
+    <summary>はじめての方へ: このページの見方</summary>
     <ul>
-      <li>値段は各鯖の取引所の最安出品価格(実際に売れた値段ではない)。データは <a href="https://aion2.exchange/" target="_blank" rel="noopener">Aion2Market</a> から自動で取得</li>
-      <li>「他鯖比」はアリエルの値段と、アジアの他鯖(アーリー鯖を除く6鯖)の中央値との差。マイナスはアリエルのほうが安い</li>
-      <li><b>買い時</b>: この1週間の中央値より15%以上安い、またはアジアの他鯖より20%以上安い(もう一方で逆に高い物と、アーリー鯖で下がっている物は除く)</li>
-      <li><b>売り時</b>: 1週間の中央値より20%以上高い、またはアジアの他鯖より25%以上高い</li>
-      <li><b>上がりそう / 下がりそう</b>: アーリー鯖(Siel・Nezekan・Vaizel)が1週間で10%以上動き、アリエルがまだ追いついていない物。アーリー鯖は数日先を進んでいる</li>
-      <li>グローバル鯖(北米・欧州・南米の天族43鯖)は通貨の価値が違うので、行を開いたときの参考値</li>
-      <li>色: 緑=安い・下がった(買う側に有利)、赤=高い・上がった</li>
-      <li>出品が3件未満の品は、1人の出品で値段が大きく動くので「今買う・今売る」には出さない</li>
-      <li>韓国版では、パッチで素材の価値が急に変わることが何度もあった。急騰した直後には飛びつかない</li>
+      <li><b>今買う</b> = いつもの値段や他のサーバーより安くなっている物。<b>今売る</b> = 高くなっている物</li>
+      <li><b>様子を見る</b> = 先行サーバー(アリエルより数日早く始まった3つのサーバー)で値段が大きく動いた物。数日後にアリエルでも同じ動きが来やすい</li>
+      <li>「いつもの値段」は、この1週間のアリエル鯖の値段の真ん中(中央値)</li>
+      <li>名前の色はレアリティ。行を押すと、詳しい数字が開きます</li>
     </ul>
+    <div class="legend"><b>レアリティ</b><span class="r-一般">一般</span><span class="r-希少">希少</span><span class="r-伝承">伝承</span><span class="r-唯一">唯一</span></div>
+  </details>
+
+  <section aria-labelledby="h-answer">
+    <header><h2 id="h-answer">今日の結論</h2><p>長剣・ガーダー・指輪・首飾りと、その素材から選んでいます(出品が3件以上ある物だけ)</p></header>
+    <div class="board">
+      <div class="col buy"><h3>今買う</h3><p>いつもより安い</p><div id="pick-buy"></div></div>
+      <div class="col sell"><h3>今売る</h3><p>いつもより高い</p><div id="pick-sell"></div></div>
+      <div class="col watch"><h3>様子を見る</h3><p>先行サーバーで先に動いた</p><div id="pick-watch"></div></div>
+    </div>
   </section>
 
-  <footer>データ: Aion2Market ・ 自動更新(6時間ごと)・ 名前の(仮)は日本語版で未確認</footer>
+  <section aria-labelledby="h-craft">
+    <header><h2 id="h-craft">装備は作るか買うか</h2>
+      <p>光る装備が出る確率は25%として、各段階を4回作って光る物を1つ作り、次の段階に進む計算です。製作の失敗と、外れた3個の売値は入れていません。</p></header>
+    <div class="crafts" id="crafts"></div>
+  </section>
+
+  <section aria-labelledby="h-list">
+    <header><h2 id="h-list">品目ごとの相場</h2><p>行を押すと、他のサーバーの値段などが見られます</p></header>
+    <nav class="tabs" role="tablist" aria-label="区分">
+      <button class="tab" role="tab" data-tab="製作武器">製作武器</button>
+      <button class="tab" role="tab" data-tab="製作装飾品">製作装飾品</button>
+      <button class="tab" role="tab" data-tab="素材">素材</button>
+      <button class="tab" role="tab" data-tab="韓国・台湾">韓国・台湾</button>
+      <button class="tab" role="tab" data-tab="判断の基準">判断の基準</button>
+    </nav>
+
+    <div id="pane-list">
+      <div class="tools">
+        <label><input type="checkbox" id="f-mine" checked> 自分が作る物だけ</label>
+        <label><input type="checkbox" id="f-big" checked> <span id="f-big-label">10万ギーナ未満を隠す</span></label>
+        <select id="f-sort" aria-label="並べ方">
+          <option value="verdict">判断の順</option>
+          <option value="cheap">いつもより安い順</option>
+          <option value="asia">他サーバーより安い順</option>
+          <option value="price">値段の高い順</option>
+        </select>
+        <input type="search" id="f-q" placeholder="名前で探す" aria-label="名前で探す">
+      </div>
+      <div class="list">
+        <div class="head"><span>名前</span><span>今の値段</span><span>いつもより</span><span>他サーバーより</span><span>1週間の動き</span><span>判断</span></div>
+        <div id="items"></div>
+      </div>
+    </div>
+
+    <div id="pane-kr" class="kr" hidden></div>
+
+    <div id="pane-help" class="notes" hidden>
+      <ul>
+        <li>値段は取引所の最安の出品価格(実際に売れた値段ではない)。<a href="https://aion2.exchange/" target="_blank" rel="noopener">Aion2Market</a> から6時間ごとに自動で取得</li>
+        <li><b>いつもより</b>: この1週間のアリエル鯖の値段の真ん中(中央値)との差</li>
+        <li><b>他サーバーより</b>: アジアの他のサーバー(先行サーバーを除く6つ)の値段の真ん中との差。マイナスはアリエルのほうが安い</li>
+        <li><b>買い時</b>: いつもより15%以上安い、または他サーバーより20%以上安い(もう一方で高い物と、先行サーバーで下がっている物は除く)</li>
+        <li><b>売り時</b>: いつもより20%以上高い、または他サーバーより25%以上高い</li>
+        <li><b>上がりそう / 下がりそう</b>: 先行サーバー(Siel・Nezekan・Vaizel)で1週間に10%以上動き、アリエルがまだ追いついていない物</li>
+        <li>北米・欧州・南米のサーバーは通貨の価値が違うので、行を開いたときの参考値</li>
+        <li>レアリティは名前の段階から付けています(職人の=希少、達人の=伝承、真龍王=唯一)。素材は「高純度=希少、純粋=伝承、煌めく=唯一」と推定</li>
+        <li>出品が3件未満の物は、1人の出品で値段が大きく変わるので「今日の結論」には出しません</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>データ: Aion2Market ・ 6時間ごとに自動更新 ・ 名前の「(仮)」は日本語版で未確認</footer>
 </main>
 
 <script>
@@ -194,15 +228,21 @@ footer a { color: var(--accent); }
     if (a >= 1e4) { const m = v / 1e4; return (m >= 100 ? Math.round(m).toLocaleString('ja-JP') : m.toFixed(1).replace(/\.0$/, '')) + '万'; }
     return Math.round(v).toLocaleString('ja-JP');
   };
-  const pct = (v) => (isNum(v) ? (v > 0 ? '+' : '') + v.toFixed(1) + '%' : '—');
+  const pct = (v) => (isNum(v) ? (v > 0 ? '+' : '') + Math.round(v) + '%' : '—');
   const tone = (v) => (!isNum(v) ? 'mu' : v < 0 ? 'lo' : v > 0 ? 'hi' : '');
-  const jst = (iso) => {
-    const d = new Date(iso); if (isNaN(d)) return '—';
-    const j = new Date(d.getTime() + 9 * 3600e3), p = (n) => String(n).padStart(2, '0');
-    return `${j.getUTCMonth() + 1}/${j.getUTCDate()} ${p(j.getUTCHours())}:${p(j.getUTCMinutes())}`;
-  };
+  const name = (r, tag) => { const e = el(tag || 'span', 'nm r-' + (r.rarity || '一般'), r.name); return e; };
   const ORDER = { '買い時': 0, '売り時': 1, '上がりそう': 2, '下がりそう': 3, '様子見': 4, '出品なし': 5 };
-  const solid = (r) => r.mine && isNum(r.price) && r.price >= 1e5 && r.listings >= 3;
+  const KIND = { '製作武器': '武器', '製作装飾品': '装飾品', '素材': '素材' };
+  // Today's answer: own items with real listings; equipment worth 100k or more, materials 10k or more (refining stones always).
+  const solid = (r) => r.mine && isNum(r.price) && r.listings >= 3 &&
+    (r.section === '素材' ? r.price >= 1e4 || /Refining Stone/.test(r.name_en) : r.price >= 1e5);
+
+  function timeText(iso) {
+    const d = new Date(iso); if (isNaN(d)) return 'データの時刻が分かりません';
+    const j = new Date(d.getTime() + 9 * 3600e3), p = (n) => String(n).padStart(2, '0');
+    const h = Math.max(0, Math.round((Date.now() - d) / 3600e3));
+    return `データの時刻: ${j.getUTCMonth() + 1}/${j.getUTCDate()} ${p(j.getUTCHours())}:${p(j.getUTCMinutes())}(日本時間、${h < 1 ? '1時間以内' : h + '時間前'})`;
+  }
 
   function spark(s) {
     const pts = String(s || '').split(',').map(Number).filter((x) => x > 0);
@@ -211,10 +251,10 @@ footer a { color: var(--accent); }
     if (pts.length < 2) return svg;
     const lo = Math.min(...pts), hi = Math.max(...pts), span = hi - lo || 1;
     const xy = pts.map((v, i) => [2 + (80 * i) / (pts.length - 1), 21 - (18 * (v - lo)) / span]);
-    const path = document.createElementNS(ns, 'path');
-    path.setAttribute('d', 'M' + xy.map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join('L'));
     const last = pts[pts.length - 1], first = pts[0];
     const color = last < first ? 'var(--buy)' : last > first ? 'var(--up)' : 'var(--muted)';
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', 'M' + xy.map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join('L'));
     path.setAttribute('fill', 'none'); path.setAttribute('stroke', color); path.setAttribute('stroke-width', '1.6');
     path.setAttribute('stroke-linejoin', 'round'); path.setAttribute('stroke-linecap', 'round');
     const dot = document.createElementNS(ns, 'circle');
@@ -223,12 +263,21 @@ footer a { color: var(--accent); }
     return svg;
   }
 
-  function pickList(box, rows, emptyText) {
+  // One plain-language line per pick: the strongest comparison only.
+  function badge(r, mode) {
+    if (mode === 'watch') return [`先行サーバーで ${pct(r.early_ch7)}`, r.verdict === '上がりそう' ? 'hi' : 'lo'];
+    const c = [['いつもより', r.vs_wk], ['他サーバーより', r.vs_asia]].filter((x) => isNum(x[1]));
+    if (!c.length) return ['', ''];
+    const pickOne = mode === 'buy' ? c.reduce((a, b) => (b[1] < a[1] ? b : a)) : c.reduce((a, b) => (b[1] > a[1] ? b : a));
+    return [`${pickOne[0]} ${Math.abs(Math.round(pickOne[1]))}%${pickOne[1] < 0 ? '安い' : '高い'}`, pickOne[1] < 0 ? 'lo' : 'hi'];
+  }
+
+  function pickList(box, rows, mode, emptyText) {
     box.replaceChildren();
     if (!rows.length) { box.append(el('p', 'none', emptyText)); return; }
     for (const r of rows) {
-      const d = el('div', 'pick');
-      d.append(el('b', '', r.name), el('span', 'num', gina(r.price)), el('p', '', (r.verdict === '上がりそう' || r.verdict === '下がりそう' ? r.verdict + ' ・ ' : '') + (r.reason || '')));
+      const d = el('div', 'pick'), [text, cls] = badge(r, mode);
+      d.append(name(r), el('span', 'num pr', gina(r.price)), el('span', 'sub', KIND[r.section] + (mode === 'watch' ? ' ・ ' + r.verdict : '')), el('span', 'badge ' + cls, text));
       box.append(d);
     }
   }
@@ -237,36 +286,66 @@ footer a { color: var(--accent); }
     const mine = items.filter(solid);
     const depth = (r) => Math.min(isNum(r.vs_wk) ? r.vs_wk : 0, isNum(r.vs_asia) ? r.vs_asia : 0);
     const height = (r) => Math.max(isNum(r.vs_wk) ? r.vs_wk : 0, isNum(r.vs_asia) ? r.vs_asia : 0);
-    pickList($('#pick-buy'), mine.filter((r) => r.verdict === '買い時').sort((a, b) => depth(a) - depth(b)).slice(0, 6), '今はっきり安い物はありません');
-    pickList($('#pick-sell'), mine.filter((r) => r.verdict === '売り時').sort((a, b) => height(b) - height(a)).slice(0, 6), '今はっきり高い物はありません');
     const lead = (r) => Math.abs(isNum(r.early_ch7) ? r.early_ch7 : 0);
-    pickList($('#pick-watch'), mine.filter((r) => r.verdict === '上がりそう' || r.verdict === '下がりそう').sort((a, b) => lead(b) - lead(a)).slice(0, 6), '目立った先行の動きはありません');
+    pickList($('#pick-buy'), mine.filter((r) => r.verdict === '買い時').sort((a, b) => depth(a) - depth(b)).slice(0, 7), 'buy', '今はっきり安い物はありません');
+    pickList($('#pick-sell'), mine.filter((r) => r.verdict === '売り時').sort((a, b) => height(b) - height(a)).slice(0, 7), 'sell', '今はっきり高い物はありません');
+    pickList($('#pick-watch'), mine.filter((r) => r.verdict === '上がりそう' || r.verdict === '下がりそう').sort((a, b) => lead(b) - lead(a)).slice(0, 7), 'watch', '目立った先行の動きはありません');
   }
 
   function drawCrafts(crafts) {
     const box = $('#crafts'); box.replaceChildren();
     for (const c of crafts.filter((c) => c.mine)) {
-      const d = el('div', 'craft'), top = el('div', 'row');
-      top.append(el('b', '', c.name), el('span', 'pill ' + c.verdict, c.verdict));
-      d.append(top, el('small', 'num', `取引所 ${gina(c.price)} / 作ると ${gina(c.cost)}(出品${c.listings}件)`));
-      box.append(d);
+      const card = el('article', 'craft');
+      const top = el('div', 'top'); top.append(name(c, 'b'), el('span', 'pill ' + c.verdict, c.verdict === '買う' ? '買うほうが安い' : c.verdict === '作る' ? '作るほうが安い' : c.verdict));
+      card.append(top);
+      if (isNum(c.price) && isNum(c.cost)) {
+        const diff = Math.abs(c.price - c.cost);
+        card.append(el('div', 'say', c.price <= c.cost ? `取引所で買えば、作るより ${gina(diff)} 安い` : `作れば、取引所より ${gina(diff)} 安い`));
+      }
+      const options = [{ label: '取引所で買う', cost: c.price, sub: `出品${c.listings}件` }, ...c.routes.map((r) => ({ label: r.label, cost: r.cost, sub: r.buy_item ? `${r.buy_item} ${r.buy_qty}個を買う` : '素材から全部' }))].filter((o) => isNum(o.cost));
+      const max = Math.max(...options.map((o) => o.cost)), min = Math.min(...options.map((o) => o.cost));
+      const bars = el('div', 'bars');
+      for (const o of options.sort((a, b) => a.cost - b.cost)) {
+        const b = el('div', 'bar' + (o.cost === min ? ' best' : ''));
+        const track = el('div', 'track'), fill = el('div', 'fill'); fill.style.width = (100 * o.cost / max).toFixed(1) + '%'; track.append(fill);
+        b.append(el('span', 'lab', o.label), track, el('span', 'v num', gina(o.cost)));
+        bars.append(b);
+      }
+      card.append(bars);
+      const det = el('details'); det.append(el('summary', '', '作り方と素材の内訳(全部作る場合)'));
+      const steps = el('div', 'steps');
+      for (const s of c.steps) {
+        const st = el('div', 'step'), h = el('h4');
+        const res = el('span'); res.append(document.createTextNode(`${s.step}. `), name({ name: s.result, rarity: s.rarity }), document.createTextNode(` を ${s.times}回作る`));
+        h.append(res, el('span', 'num', gina(s.cost)));
+        const t = el('table');
+        for (const m of s.mats) {
+          const tr = el('tr'), td1 = el('td'); td1.append(name(m));
+          tr.append(td1, el('td', 'n num', `${m.qty.toLocaleString('ja-JP')}個`), el('td', 'n num muted', `@${gina(m.unit)}`), el('td', 'n num', gina(m.subtotal)));
+          t.append(tr);
+        }
+        st.append(h, t); steps.append(st);
+      }
+      steps.append(el('p', 'note', '途中の段階を買う場合は、その段階より前の行が要らなくなり、代わりに買った光る装備を使います'));
+      det.append(steps); card.append(det);
+      box.append(card);
     }
   }
 
   function detail(r) {
     const d = el('div', 'detail');
-    if (r.reason) d.append(el('p', 'why', r.reason));
+    if (r.reason) d.append(el('p', 'note', r.reason));
     const g = el('dl', 'grid');
     const add = (k, v, cls) => { const w = el('div'); w.append(el('dt', '', k), el('dd', 'num ' + (cls || ''), v)); g.append(w); };
     add('出品数', isNum(r.listings) ? r.listings + '件' : '—');
-    add('24時間', pct(r.ch24), tone(r.ch24));
-    add('7日の中央値', gina(r.wk_med));
-    add('7日の最安', gina(r.wk_low));
-    add('アジア他鯖', gina(r.asia_med));
-    add('アーリー鯖', gina(r.early_med));
-    add('アーリー7日', pct(r.early_ch7), tone(r.early_ch7));
-    add('グローバル', gina(r.global_med));
-    add('グローバル7日', pct(r.global_ch7), tone(r.global_ch7));
+    add('24時間の動き', pct(r.ch24), tone(r.ch24));
+    add('1週間の動き', pct(r.ch7), tone(r.ch7));
+    add('いつもの値段', gina(r.wk_med));
+    add('1週間の最安', gina(r.wk_low));
+    add('アジアの他サーバー', gina(r.asia_med));
+    add('先行サーバー', gina(r.early_med));
+    add('先行サーバーの1週間', pct(r.early_ch7), tone(r.early_ch7));
+    add('北米・欧州・南米', gina(r.global_med));
     add('英語名', r.name_en);
     d.append(g);
     return d;
@@ -276,21 +355,21 @@ footer a { color: var(--accent); }
   function drawList() {
     const mine = $('#f-mine').checked, big = $('#f-big').checked, q = $('#f-q').value.trim().toLowerCase(), sort = $('#f-sort').value;
     let rows = ITEMS.filter((r) => r.section === tab && (!mine || r.mine) && (!big || (tab === '素材' ? r.listings > 0 : isNum(r.price) && r.price >= 1e5)) && (!q || (r.name + ' ' + r.name_en).toLowerCase().includes(q)));
-    const key = {
+    const nz = (v) => (isNum(v) ? v : 1e9);
+    rows.sort({
       verdict: (a, b) => (ORDER[a.verdict] - ORDER[b.verdict]) || ((b.tier || 0) - (a.tier || 0)) || a.name.localeCompare(b.name, 'ja'),
-      cheap: (a, b) => (isNum(a.vs_asia) ? a.vs_asia : 1e9) - (isNum(b.vs_asia) ? b.vs_asia : 1e9),
-      drop: (a, b) => (isNum(a.ch7) ? a.ch7 : 1e9) - (isNum(b.ch7) ? b.ch7 : 1e9),
+      cheap: (a, b) => nz(a.vs_wk) - nz(b.vs_wk),
+      asia: (a, b) => nz(a.vs_asia) - nz(b.vs_asia),
       price: (a, b) => (isNum(b.price) ? b.price : -1) - (isNum(a.price) ? a.price : -1),
-    }[sort];
-    rows = rows.sort(key);
+    }[sort]);
     const box = $('#items'); box.replaceChildren();
-    if (!rows.length) { box.append(el('div', 'empty', '条件に合う品はありません。上のチェックを外すと増えます')); return; }
+    if (!rows.length) { box.append(el('div', 'empty', '条件に合う物はありません。上のチェックを外すと増えます')); return; }
     for (const r of rows) {
       const det = el('details', 'item'), s = el('summary');
-      const nm = el('span', 'nm', r.name); if (r.mine) nm.append(el('span', 'mine', '自分用'));
+      const nm = name(r); nm.append(el('small', '', r.kind + (r.listings ? ` ・ 出品${r.listings}件` : ' ・ 出品なし')));
       const pc = el('span', 'pc'); pc.append(el('span', 'pill ' + r.verdict, r.verdict));
       const sp = el('span', 'sp'); sp.append(spark(r.spark));
-      s.append(nm, pc, el('span', 'r num p', gina(r.price)), el('span', 'r num c7 ' + tone(r.ch7), pct(r.ch7)), el('span', 'r num va ' + tone(r.vs_asia), pct(r.vs_asia)), sp);
+      s.append(nm, el('span', 'r num p', gina(r.price)), el('span', 'r num wk ' + tone(r.vs_wk), pct(r.vs_wk)), el('span', 'r num va ' + tone(r.vs_asia), pct(r.vs_asia)), sp, pc);
       det.append(s);
       det.addEventListener('toggle', () => { if (det.open && det.children.length === 1) det.append(detail(r)); });
       box.append(det);
@@ -299,6 +378,7 @@ footer a { color: var(--accent); }
 
   function drawKorea(rows) {
     const box = $('#pane-kr'); box.replaceChildren();
+    box.append(el('p', 'note', '韓国・台湾版はグローバル版より約11か月先を進んでいます。品ごとの値段は公開されていないので、韓国の動画から読んだ流れをまとめています'));
     for (const r of rows) {
       const a = el('article');
       a.append(el('h3', '', r.topic), el('p', '', r.korea), el('p', 'to', '→ ' + r.meaning), el('small', '', r.source));
@@ -306,27 +386,27 @@ footer a { color: var(--accent); }
     }
   }
 
-  function show(name) {
-    tab = name;
-    for (const t of document.querySelectorAll('.tab')) t.setAttribute('aria-selected', String(t.dataset.tab === name));
-    const list = name !== '韓国・台湾' && name !== '見方';
-    $('#pane-list').hidden = !list; $('#pane-kr').hidden = name !== '韓国・台湾'; $('#pane-help').hidden = name !== '見方';
-    $('#f-big-label').textContent = name === '素材' ? 'アリエルに出品がない物を隠す' : '10万ギーナ未満を隠す';
+  function show(t) {
+    tab = t;
+    for (const b of document.querySelectorAll('.tab')) b.setAttribute('aria-selected', String(b.dataset.tab === t));
+    const list = ['製作武器', '製作装飾品', '素材'].includes(t);
+    $('#pane-list').hidden = !list; $('#pane-kr').hidden = t !== '韓国・台湾'; $('#pane-help').hidden = t !== '判断の基準';
+    $('#f-big-label').textContent = t === '素材' ? 'アリエルに出品がない物を隠す' : '10万ギーナ未満を隠す';
     if (list) drawList();
-    try { localStorage.setItem('tab', name); } catch (e) {}
+    try { localStorage.setItem('tab', t); } catch (e) {}
   }
-  for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => show(t.dataset.tab));
+  for (const b of document.querySelectorAll('.tab')) b.addEventListener('click', () => show(b.dataset.tab));
   for (const id of ['#f-mine', '#f-big', '#f-sort']) $(id).addEventListener('change', drawList);
   $('#f-q').addEventListener('input', drawList);
 
   const load = (f) => fetch('data/' + f + '?t=' + Date.now()).then((r) => { if (!r.ok) throw new Error(f + ' ' + r.status); return r.json(); });
   Promise.all([load('items.json'), load('crafts.json'), load('korea_taiwan.json')]).then(([it, cr, kr]) => {
     ITEMS = it.rows;
-    $('#time').textContent = 'データ ' + jst(it.meta && it.meta.captured_at || (ITEMS[0] && ITEMS[0].captured_at)) + '(日本時間)';
+    $('#time').textContent = timeText((it.meta && it.meta.captured_at) || (ITEMS[0] && ITEMS[0].captured_at));
     drawBoard(ITEMS); drawCrafts(cr.rows); drawKorea(kr.rows);
     let saved = null; try { saved = localStorage.getItem('tab'); } catch (e) {}
     show(saved && document.querySelector(`.tab[data-tab="${saved}"]`) ? saved : '製作武器');
-  }).catch((e) => { $('#time').textContent = 'データを読み込めませんでした(' + e.message + ')'; });
+  }).catch((e) => { $('#time').textContent = 'データを読み込めませんでした(' + e.message + ')。少し待って再読み込みしてください'; });
 })();
 </script>
 </body>
