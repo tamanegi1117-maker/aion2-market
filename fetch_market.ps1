@@ -75,7 +75,7 @@ function Get-MaterialGroup([string]$en) {
 
 # Rarity: equipment from its tier name; materials estimated from the grade word in the name.
 function Get-Rarity([string]$en, [int]$rank) {
-    if ($rank -ge 7) { return '唯一' }
+    if ($rank -ge 6) { return '唯一' }   # Artisan's Splendent and True Dragon Lord
     if ($rank -ge 5) { return '伝承' }
     if ($rank -ge 3) { return '希少' }
     if ($rank -ge 1) { return '一般' }
