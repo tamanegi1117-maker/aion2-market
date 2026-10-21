@@ -185,7 +185,7 @@ footer a, .notes a { color: var(--accent); }
   </details>
 
   <section aria-labelledby="h-answer">
-    <header><h2 id="h-answer">今日の結論</h2><p>長剣・ガーダー・指輪・首飾りと、その素材から選んでいます(出品が3件以上ある物だけ)</p></header>
+    <header><h2 id="h-answer">今日の結論</h2><p>ロングソード・ガーダー・リング・ネックレスと、その素材から選んでいます(出品が3件以上ある物だけ)</p></header>
     <div class="board">
       <div class="col buy"><h3>今買う</h3><p>3日でアリエルだけ下がった・他サーバーより安い</p><div id="pick-buy"></div></div>
       <div class="col sell"><h3>今売る</h3><p>3日でアリエルだけ上がった・他サーバーより高い</p><div id="pick-sell"></div></div>
@@ -203,6 +203,7 @@ footer a, .notes a { color: var(--accent); }
     <header><h2 id="h-fc">今後の予想</h2>
       <p>数日の予想はデータから毎時自動で作っています。1か月の予想は、韓国版で同じ時期に実際にあった動きです。どちらも当たる保証はありません。判断の材料のひとつにしてください。</p></header>
     <p class="fc-sub">数日の予想(自分が作る物)</p>
+    <p class="note" id="fc-check" style="margin:-4px 0 10px"></p>
     <div class="fc-now">
       <div class="col up"><h3>上がりそう</h3><p>先行サーバーが上がっている・他サーバーより安い</p><div id="fc-up"></div></div>
       <div class="col dn"><h3>下がりそう</h3><p>先行サーバーが下がっている・他サーバーより高い</p><div id="fc-down"></div></div>
@@ -261,7 +262,7 @@ footer a, .notes a { color: var(--accent); }
     </div>
   </section>
 
-  <footer>データ: Aion2Market ・ 6時間ごとに自動更新 ・ 名前の「(仮)」は日本語版で未確認</footer>
+  <footer>データ: Aion2Market ・ 6時間ごとに自動更新 ・ 名前は日本語版のゲームデータ(questlog.gg・GameWith)で確認。「(仮)」は未確認</footer>
 </main>
 
 <script>
@@ -521,12 +522,20 @@ footer a, .notes a { color: var(--accent); }
   for (const id of ['#f-mine', '#f-big', '#f-sort']) $(id).addEventListener('change', drawList);
   $('#f-q').addEventListener('input', drawList);
 
+  // How often the short-term outlook was right, judged on the price 3 days later.
+  function drawCheck(c) {
+    const box = $('#fc-check');
+    if (!c || !c.pairs) { box.textContent = '予想の当たり外れ: 記録を始めたところです。3日後から数え始めます'; return; }
+    const rate = (hit, n) => (n ? `${hit}/${n}回(${Math.round((hit / n) * 100)}%)` : 'まだなし');
+    box.textContent = `これまでの当たり(3日後の値段で判定。±3%が境目): 上がる ${rate(c.up_hit, c.up_n)} ・ 下がる ${rate(c.down_hit, c.down_n)} ・ 横ばい ${rate(c.flat_hit, c.flat_n)}`;
+  }
+
   const load = (f) => fetch('data/' + f + '?t=' + Date.now()).then((r) => { if (!r.ok) throw new Error(f + ' ' + r.status); return r.json(); });
   Promise.all([load('items.json'), load('crafts.json'), load('korea_taiwan.json')]).then(([it, cr, kr]) => {
     ITEMS = it.rows;
     $('#time').textContent = timeText((it.meta && it.meta.captured_at) || (ITEMS[0] && ITEMS[0].captured_at));
     FORECAST = kr.forecast || [];
-    drawBoard(ITEMS); drawCrafts(cr.rows); drawShortForecast(ITEMS); drawStones(ITEMS); drawForecast(); drawKorea(kr.rows);
+    drawBoard(ITEMS); drawCrafts(cr.rows); drawShortForecast(ITEMS); drawCheck(it.meta && it.meta.forecast_check); drawStones(ITEMS); drawForecast(); drawKorea(kr.rows);
     let saved = null; try { saved = localStorage.getItem('tab'); } catch (e) {}
     show(saved && document.querySelector(`.tab[data-tab="${saved}"]`) ? saved : '製作武器');
   }).catch((e) => { $('#time').textContent = 'データを読み込めませんでした(' + e.message + ')。少し待って再読み込みしてください'; });

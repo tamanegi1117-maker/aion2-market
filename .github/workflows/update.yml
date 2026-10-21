@@ -43,6 +43,7 @@ jobs:
           base="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data"
           curl -fsS "$base/items.json" -o data/items.json || rm -f data/items.json
           curl -fsS "$base/crafts.json" -o data/crafts.json || rm -f data/crafts.json
+          curl -fsS "$base/forecast_log.json" -o data/forecast_log.json || rm -f data/forecast_log.json
 
       - name: Fetch prices
         id: fetch

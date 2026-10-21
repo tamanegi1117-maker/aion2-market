@@ -83,9 +83,10 @@ $tiers = @(
     @{ en = "Splendent ";                  ja = '光る';         rank = 2 }
 )
 $stuff = @{ Orichalcum = 'オリハルコンの'; Ruby = 'ルビーの'; Sapphire = 'サファイアの'; Diamond = 'ダイヤモンドの'; Yggdrasil = 'ユグドラシルの'; Truth = '真実の' }
-$parts = @{ Longsword = '長剣'; Guard = 'ガーダー'; Ring = '指輪'; Necklace = 'ネックレス'; Earrings = 'イヤリング'
-            Greatsword = '大剣'; Dagger = '短剣'; Bow = '弓'; Orb = '宝珠'; Spellbook = '魔導書'; Staff = '杖'; Mace = 'メイス' }
-$confirmed = @('Orichalcum', 'Ruby', 'Sapphire', 'Longsword', 'Guard', 'Ring', 'Necklace')
+$parts = @{ Longsword = 'ロングソード'; Guard = 'ガーダー'; Ring = 'リング'; Necklace = 'ネックレス'; Earrings = 'イヤリング'
+            Greatsword = 'グレートソード'; Dagger = 'ダガー'; Bow = 'ボウ'; Orb = 'オーブ'; Spellbook = 'マジックブック'; Staff = 'ワンド'; Mace = 'メイス' }
+# Checked against the Japanese client names on questlog.gg and GameWith (2026-10-21).
+$confirmed = @($stuff.Keys) + @($parts.Keys)
 
 function Convert-EquipName([string]$en) {
     $rest = $en; $prefix = ''; $rank = 1
@@ -351,6 +352,40 @@ $rows = foreach ($k in $obs.Keys) {
 }
 $rows = @($rows | Sort-Object { $_.section }, { $_.kind }, { $_.tier }, { $_.name })
 
+# --- Forecast log: check the short-term outlook 3 days later -----------------------------
+# Each full run (every 6 hours) adds every item's price, score and the three inputs
+# (early-access 3-day move, gap to the other Asia servers, Asia-wide 3-day move); 9 days are
+# kept. Each entry is then compared with the entry about 72 hours later: "up" is right when
+# the price rose 3% or more, "down" when it fell 3% or more, "flat" when it moved less.
+$logFile = Join-Path $outDir 'forecast_log.json'
+$log = @()
+if (Test-Path $logFile) { try { $log = @((Get-Content -Raw -Encoding UTF8 $logFile | ConvertFrom-Json).entries) } catch { $log = @() } }
+$capUtc = ConvertTo-Utc $capturedAt
+if ($doFull -and $capUtc) {
+    $snap = [ordered]@{}
+    foreach ($r in $rows) { if ($r.price -and $r.fc_short) { $snap[[string]$r.key] = @($r.price, $r.fc_score, $r.early_ch3, $r.vs_asia, $r.asia_ch3) } }
+    $log += [pscustomobject]@{ at = $capUtc.ToString('o'); p = [pscustomobject]$snap }
+}
+$log = @($log | Where-Object { $capUtc -and ($capUtc - (ConvertTo-Utc $_.at)).TotalDays -le 9 })
+
+$check = [ordered]@{ up_n = 0; up_hit = 0; down_n = 0; down_hit = 0; flat_n = 0; flat_hit = 0; pairs = 0 }
+foreach ($e in $log) {
+    $t0 = ConvertTo-Utc $e.at
+    $later = $log | Where-Object { $h = ((ConvertTo-Utc $_.at) - $t0).TotalHours; $h -ge 66 -and $h -le 78 } |
+        Sort-Object { [math]::Abs(((ConvertTo-Utc $_.at) - $t0).TotalHours - 72) } | Select-Object -First 1
+    if (-not $later) { continue }
+    $check.pairs++
+    foreach ($pr in $e.p.PSObject.Properties) {
+        $then = $pr.Value; $now3 = $later.p.($pr.Name)
+        if (-not $now3 -or -not $then[0]) { continue }
+        $move = ($now3[0] - $then[0]) / $then[0] * 100
+        $side = if ($then[1] -ge 8) { 'up' } elseif ($then[1] -le -8) { 'down' } else { 'flat' }
+        $check["${side}_n"]++
+        $hit = switch ($side) { 'up' { $move -ge 3 } 'down' { $move -le -3 } default { [math]::Abs($move) -lt 3 } }
+        if ($hit) { $check["${side}_hit"]++ }
+    }
+}
+
 # --- Craft or buy (home server) ----------------------------------------------------------
 # The Splendent (光る) result comes 1 time in 4 (combo 25%), so each step is made 4 times and
 # its Splendent result feeds the next step: step i of n is made 4^(n-i+1) times.
@@ -429,8 +464,10 @@ $meta = [ordered]@{
     captured_at = $capturedAt; home = $HomeServer
     others_at = $(if ($doFull) { $now.ToString('o') } else { (ConvertTo-Utc $prevData.meta.others_at).ToString('o') })
     asia_servers = $groupCount.asia; early_servers = $groupCount.early; global_servers = $groupCount.global
+    forecast_check = $check
 }
 [IO.File]::WriteAllText((Join-Path $outDir 'items.json'), (@{ meta = $meta; rows = $rows } | ConvertTo-Json -Depth 5 -Compress), $utf8)
+[IO.File]::WriteAllText($logFile, (@{ entries = $log } | ConvertTo-Json -Depth 6 -Compress), $utf8)
 [IO.File]::WriteAllText((Join-Path $outDir 'crafts.json'), (@{ rows = $crafts } | ConvertTo-Json -Depth 10 -Compress), $utf8)
 
 # --- Short summary (keep it small: this is what Claude reads) -----------------------------
