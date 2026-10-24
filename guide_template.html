@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AION2 攻略ブック</title>
+<meta name="robots" content="noindex">
+<style>
+/* Same dark palette as the market board so the two pages feel like one site. */
+:root {
+  --bg: #0f131b; --panel: #171c27; --panel2: #1e2432; --fg: #e9ecf3; --muted: #97a0b5; --line: #2a3142;
+  --accent: #7fa2ff; --gold: #f0b84a; --gold-bg: #2e2716; --mark: #5a4a12;
+  --font: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", "Noto Sans JP", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.7 var(--font); }
+a { color: var(--accent); }
+.wrap { max-width: 1060px; margin: 0 auto; padding-block: 16px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.site { display: flex; gap: 6px; margin-bottom: 14px; }
+.site a { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); text-decoration: none; font-size: .9rem; }
+.site a[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: #0f131b; font-weight: 700; }
+h1.title { margin: 0; font-size: 1.6rem; letter-spacing: .03em; }
+.lead { margin: 4px 0 14px; color: var(--muted); font-size: .9rem; }
+
+/* Sticky bar: tabs + search */
+.bar { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 8px 0 10px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+.tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
+.tabs button { flex: none; font: inherit; font-size: .9rem; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--panel2); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.search { display: flex; gap: 8px; }
+.search input { flex: 1; min-width: 0; font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+.search input:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+
+/* Table of contents for the open document */
+.toc { margin: 14px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.toc a { font-size: .8rem; text-decoration: none; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; }
+.toc a:hover { color: var(--fg); border-color: var(--muted); }
+
+/* Rendered markdown */
+.doc { margin-top: 8px; }
+.doc h1 { font-size: 1.4rem; margin: 18px 0 6px; }
+.doc h2 { font-size: 1.15rem; margin: 30px 0 10px; padding: 6px 12px; background: var(--panel); border-left: 4px solid var(--accent); border-radius: 4px; scroll-margin-top: 110px; }
+.doc h2.key { border-left-color: var(--gold); background: var(--gold-bg); color: var(--gold); }
+.doc h3 { font-size: 1rem; margin: 20px 0 8px; color: var(--accent); scroll-margin-top: 110px; }
+.doc h4 { margin: 14px 0 6px; scroll-margin-top: 110px; }
+.doc p, .doc li { overflow-wrap: anywhere; }
+.doc ul, .doc ol { padding-left: 1.3em; }
+.doc li { margin: 2px 0; }
+.doc code { background: var(--panel2); border-radius: 4px; padding: 0 4px; font-size: .88em; }
+.doc hr { border: 0; border-top: 1px solid var(--line); margin: 24px 0; }
+.doc strong { color: #fff; }
+.tw { overflow-x: auto; margin: 8px 0 12px; border: 1px solid var(--line); border-radius: 8px; }
+.doc table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+.doc th, .doc td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; min-width: 6em; }
+.doc th { background: var(--panel2); color: var(--muted); font-weight: 600; white-space: nowrap; }
+.doc tr:last-child td { border-bottom: 0; }
+.doc tbody tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+.doc a.tab-link { cursor: pointer; }
+
+/* Search results */
+.results { margin-top: 14px; display: grid; gap: 8px; }
+.results .none { color: var(--muted); }
+.hit { display: block; text-decoration: none; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+.hit:hover { border-color: var(--accent); }
+.hit .where { font-size: .8rem; color: var(--accent); }
+.hit .snip { font-size: .88rem; overflow-wrap: anywhere; }
+mark { background: var(--mark); color: #fff; border-radius: 2px; padding: 0 1px; }
+.flash { animation: flash 1.6s ease-out; }
+@keyframes flash { from { background: var(--mark); } }
+.foot { margin-top: 40px; color: var(--muted); font-size: .8rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="site" aria-label="ページ"><a href="./">相場ボード</a><a href="guide.html" aria-current="page">攻略ブック</a></nav>
+  <h1 class="title">AION2 攻略ブック</h1>
+  <p class="lead">テンプラー(天族・アリエル鯖)目線で、海外の攻略動画とデータを日本語のゲーム内の名前でまとめたものです。<span id="built"></span></p>
+
+  <div class="bar">
+    <div class="tabs" role="tablist" aria-label="まとめ"></div>
+    <div class="search"><input id="q" type="search" placeholder="全部のまとめから探す(例: 審判、怒りの思念、覚醒戦)" aria-label="検索"></div>
+  </div>
+
+  <nav class="toc" aria-label="この中の章"></nav>
+  <article class="doc"></article>
+  <div class="results" hidden></div>
+  <p class="foot">非公式の個人メモです。ゲームの数値はパッチで変わります。内容は出典の動画やサイトの説明をまとめたもので、すべてをゲーム内で確かめたわけではありません。</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script>
+const GUIDE = /*__GUIDE_DATA__*/{"built":"","docs":[]};
+const DOCS = GUIDE.docs;
+const $ = s => document.querySelector(s);
+const tabsEl = $('.tabs'), docEl = $('.doc'), tocEl = $('.toc'), resEl = $('.results'), qEl = $('#q');
+let current = null;
+
+$('#built').textContent = GUIDE.built ? '(更新: ' + GUIDE.built + ')' : '';
+
+// Map a markdown link target or code span (a local .md/.html path) to one of the tabs.
+function docForPath(p) {
+  if (!p) return null;
+  let s = p.replace(/^<|>$/g, '');
+  try { s = decodeURIComponent(s); } catch (e) {}
+  const base = s.split(/[\\/]/).pop();
+  if (/\.html$/.test(base)) return DOCS.find(d => d.id === 'pet') || null;
+  return DOCS.find(d => d.file === base) || null;
+}
+
+function esc(s) { return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function render(md) {
+  if (window.marked) return marked.parse(md, { gfm: true });
+  return '<pre style="white-space:pre-wrap">' + esc(md) + '</pre>';
+}
+
+function show(id, headingIndex) {
+  const d = DOCS.find(x => x.id === id) || DOCS[0];
+  current = d.id;
+  for (const b of tabsEl.children) b.setAttribute('aria-selected', b.dataset.id === d.id ? 'true' : 'false');
+  resEl.hidden = true; docEl.hidden = false; tocEl.hidden = false;
+  docEl.innerHTML = render(d.md);
+
+  // Headings get stable ids in document order; the search uses the same order.
+  const hs = docEl.querySelectorAll('h1, h2, h3, h4');
+  hs.forEach((h, i) => { h.id = d.id + '-' + i; if (h.tagName === 'H2' && /結論|今の|まず/.test(h.textContent)) h.classList.add('key'); });
+  tocEl.innerHTML = '';
+  docEl.querySelectorAll('h2').forEach(h => {
+    const a = document.createElement('a'); a.href = '#' + d.id + '/' + h.id.split('-').pop();
+    a.textContent = h.textContent.replace(/[((].*?[))]/g, '').trim(); tocEl.appendChild(a);
+  });
+
+  // Wide tables scroll inside their own box instead of widening the page.
+  docEl.querySelectorAll('table').forEach(t => { const w = document.createElement('div'); w.className = 'tw'; t.replaceWith(w); w.appendChild(t); });
+
+  // Links and code spans that point at another note become tab switches.
+  docEl.querySelectorAll('a[href]').forEach(a => {
+    const target = docForPath(a.getAttribute('href'));
+    if (target && !/^https?:/.test(a.getAttribute('href'))) { a.href = '#' + target.id; a.classList.add('tab-link'); }
+    else if (/^https?:/.test(a.getAttribute('href'))) { a.target = '_blank'; a.rel = 'noopener'; }
+  });
+  docEl.querySelectorAll('code').forEach(c => {
+    const target = /\.(md|html)$/.test(c.textContent) ? docForPath(c.textContent) : null;
+    if (target) { const a = document.createElement('a'); a.href = '#' + target.id; a.className = 'tab-link'; a.textContent = target.title; c.replaceWith(a); }
+  });
+
+  if (headingIndex != null) {
+    const h = document.getElementById(d.id + '-' + headingIndex);
+    if (h) { h.scrollIntoView({ block: 'start' }); h.classList.add('flash'); return; }
+  }
+  window.scrollTo({ top: 0 });
+}
+
+function route() {
+  const m = location.hash.slice(1).split('/');
+  if (qEl.value.trim()) { qEl.value = ''; }
+  show(m[0] || DOCS[0].id, m[1] != null ? Number(m[1]) : null);
+}
+
+// Search: every line of every note, grouped under the heading it belongs to.
+function search(q) {
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) { show(current || DOCS[0].id); return; }
+  docEl.hidden = true; tocEl.hidden = true; resEl.hidden = false;
+  const hits = [];
+  for (const d of DOCS) {
+    let hIndex = -1, hText = d.title;
+    for (const line of d.md.split('\n')) {
+      const hm = line.match(/^(#{1,4})\s+(.*)/);
+      if (hm) { hIndex++; hText = hm[2]; }
+      const low = line.toLowerCase();
+      if (words.every(w => low.includes(w))) hits.push({ d, hIndex, hText, line });
+      if (hits.length > 200) break;
+    }
+  }
+  if (!hits.length) { resEl.innerHTML = '<p class="none">見つかりませんでした</p>'; return; }
+  const re = new RegExp('(' + words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'gi');
+  resEl.innerHTML = '<p class="none">' + hits.length + '件</p>' + hits.slice(0, 120).map(h => {
+    const plain = h.line.replace(/<!--.*?-->/g, '').replace(/[*`#>|]/g, ' ').replace(/\s+/g, ' ').trim();
+    const snip = esc(plain.length > 160 ? plain.slice(0, 160) + '…' : plain).replace(re, '<mark>$1</mark>');
+    const where = esc(h.d.title + (h.hIndex >= 0 ? ' › ' + h.hText.replace(/[*`]/g, '') : ''));
+    return '<a class="hit" href="#' + h.d.id + (h.hIndex >= 0 ? '/' + h.hIndex : '') + '"><div class="where">' + where + '</div><div class="snip">' + snip + '</div></a>';
+  }).join('');
+}
+
+for (const d of DOCS) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.setAttribute('role', 'tab'); b.dataset.id = d.id; b.textContent = d.tab;
+  b.addEventListener('click', () => { if (location.hash === '#' + d.id) route(); else location.hash = d.id; });
+  tabsEl.appendChild(b);
+}
+let timer;
+qEl.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => search(qEl.value.trim()), 150); });
+window.addEventListener('hashchange', route);
+route();
+</script>
+</body>
+</html>

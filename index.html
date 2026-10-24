@@ -26,6 +26,10 @@ body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.65 var(-
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
 .wrap > * { min-width: 0; }
 h1 { margin: 0; font-size: 1.6rem; letter-spacing: .03em; }
+/* Site switch shared with guide.html */
+.site { display: flex; gap: 6px; margin-bottom: -16px; }
+.site a { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); text-decoration: none; font-size: .9rem; }
+.site a[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: #0f131b; font-weight: 700; }
 h2 { margin: 0; font-size: 1.15rem; }
 .lead { margin: 4px 0 0; color: var(--muted); }
 .num { font-family: var(--num); font-variant-numeric: tabular-nums; }
@@ -167,6 +171,7 @@ footer a, .notes a { color: var(--accent); }
 </head>
 <body>
 <main class="wrap">
+  <nav class="site" aria-label="ページ"><a href="./" aria-current="page">相場ボード</a><a href="guide.html">攻略ブック</a></nav>
   <header>
     <h1>AION2 相場ボード</h1>
     <p class="lead">アリエル鯖(天族)の取引所で、<b>今買うと得な物・売ると得な物</b>と、<b>装備は作るか買うか</b>をまとめたページです。<br>
